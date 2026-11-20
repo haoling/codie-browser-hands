@@ -77,6 +77,15 @@ try {
   const read = await mock.invoke("read_page", { tab_id: tabId, max_chars: 4000 });
   check("read_page(本文・切り詰め・サイズ)", read.status === "succeeded" && read.data.text.includes("こんにちは") && read.data.truncated && read.schema_ok && JSON.stringify(read.data).length < 16384, JSON.stringify(read).slice(0, 300));
 
+  // 続き読み: 全文を offset でたどって、最後まで読み切れる
+  let got = "", off = 0, loops = 0, chunk;
+  do {
+    chunk = await mock.invoke("read_page", { tab_id: tabId, max_chars: 4000, offset: off });
+    if (chunk.status !== "succeeded" || !chunk.schema_ok) break;
+    got += chunk.data.text; off = chunk.data.next_offset ?? 0;
+  } while (chunk.data.truncated && ++loops < 20);
+  check("read_page を offset でたどると全文が読める", chunk.status === "succeeded" && !chunk.data.truncated && got.length === chunk.data.total_chars && got.endsWith("あ".repeat(100)) && loops >= 1, `${got.length}/${chunk.data?.total_chars} loops=${loops}`);
+
   const els = await mock.invoke("get_elements", { tab_id: tabId });
   const byText = (t) => els.data?.elements.find((e) => e.text === t);
   const q = els.data?.elements.find((e) => e.tag === "input" && e.text === "検索");
