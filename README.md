@@ -30,7 +30,7 @@ The popup language (English / 日本語 / 中文) can be switched with the selec
 Tools: `list_tabs`, `read_page`, `get_elements`, `open_url`, `switch_tab`, `scroll_page`, `click_element`, `type_text`, `close_tab`.
 
 Notes:
-- Click / type / close-tab are declared as needing confirmation by default (toggle in the popup). Password fields and non-http(s) pages are refused.
+- Click / type / close-tab show a confirmation window in Chrome (Allow / Deny, auto-denied after 15 s) by default; toggle it in the popup. The extension asks by itself because the device API only records the `confirmation_required` declaration. Password fields and non-http(s) pages are refused.
 - Pairing is `session` (12 h) by default; the secret is stored in `chrome.storage.local`.
 - If browser pairing is rejected, paste a `credentials.json` made by `examples/local_api.py` (from the Codie API package) into **Import** in the popup.
 - Not yet verified on a real device — see the PR/issues for known unknowns.
@@ -66,7 +66,7 @@ Codie（1.6.0 の LAN HTTP API）に Chrome を操作させるための Chrome �
 ツール: `list_tabs`、`read_page`、`get_elements`、`open_url`、`switch_tab`、`scroll_page`、`click_element`、`type_text`、`close_tab`。
 
 補足:
-- クリック・入力・タブを閉じる操作は、既定で確認が必要な宣言になっています（ポップアップで切替可）。パスワード欄と http/https 以外のページは拒否します。
+- クリック・入力・タブを閉じる操作は、既定で Chrome に確認ウィンドウ（許可 / 拒否。15 秒で自動拒否）が出ます。ポップアップで切替できます。端末の API は `confirmation_required` の宣言を記録するだけなので、確認は拡張自身が行います。パスワード欄と http/https 以外のページは拒否します。
 - ペアリングは既定で `session`（12 時間）です。鍵は `chrome.storage.local` に保存されます。
 - ブラウザーからのペアリングが拒否される場合は、Codie API パッケージの `examples/local_api.py` で作った `credentials.json` を、ポップアップの**取り込む**に貼り付けてください。
 - 実機では未検証です。分かっていない点は PR を参照してください。
@@ -102,7 +102,7 @@ Codie（1.6.0 の LAN HTTP API）に Chrome を操作させるための Chrome �
 工具：`list_tabs`、`read_page`、`get_elements`、`open_url`、`switch_tab`、`scroll_page`、`click_element`、`type_text`、`close_tab`。
 
 说明：
-- 点击、输入、关闭标签页默认声明为需要确认（可在弹窗中切换）。密码输入框和非 http/https 页面会被拒绝。
+- 点击、输入、关闭标签页默认会在 Chrome 中弹出确认窗口（允许 / 拒绝,15 秒后自动拒绝),可在弹窗中切换。设备 API 只记录 `confirmation_required` 声明,因此由扩展自己负责确认。密码输入框和非 http/https 页面会被拒绝。
 - 配对默认为 `session`（12 小时），密钥保存在 `chrome.storage.local` 中。
 - 如果浏览器端配对被拒绝，请把 Codie API 包中 `examples/local_api.py` 生成的 `credentials.json` 粘贴到弹窗的**导入**中。
 - 尚未在真机上验证，已知的未确认事项请见 PR。

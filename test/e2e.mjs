@@ -10,6 +10,16 @@ import { startMock } from "./mock-device.mjs";
 const ext = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MOCK_PORT = 18081, PAGE_PORT = 18090;
 let failed = 0;
+// 確認ウィンドウ(popup/confirm.html)が開くのを待って、許可/拒否を押す
+const withConfirm = async (allow, run) => {
+  const opened = ctx.waitForEvent("page", { timeout: 10000 });
+  const result = run();
+  const win = await opened;
+  await win.waitForLoadState();
+  const text = await win.textContent("body");
+  await win.click(allow ? "#allow" : "#deny");
+  return { result: await result, text };
+};
 const check = (name, ok, extra = "") => { console.log((ok ? "PASS " : "FAIL ") + name + (ok ? "" : "  " + extra)); if (!ok) failed++; };
 
 const page = http.createServer((req, res) => {
@@ -73,14 +83,19 @@ try {
   const btn = byText("押す"), go = byText("送信");
   check("get_elements", els.status === "succeeded" && q && btn && go && els.schema_ok, JSON.stringify(els).slice(0, 400));
 
-  const click = await mock.invoke("click_element", { tab_id: tabId, ref: btn.ref });
+  const declined = await withConfirm(false, () => mock.invoke("click_element", { tab_id: tabId, ref: btn.ref }));
+  check("クリックを拒否すると実行されない(USER_DECLINED)", declined.result.status === "failed" && declined.result.code === "USER_DECLINED" && declined.result.schema_ok, JSON.stringify(declined.result));
+  check("確認ウィンドウに操作内容が出る", declined.text.includes("Click") || declined.text.includes("クリック") || declined.text.includes("点击"), declined.text);
+  const page0 = ctx.pages().find((p) => p.url().startsWith(`http://127.0.0.1:${PAGE_PORT}`));
+  check("拒否したのでページは変わっていない", (await page0.textContent("#out")) === "");
+  const { result: click } = await withConfirm(true, () => mock.invoke("click_element", { tab_id: tabId, ref: btn.ref }));
   const page1 = ctx.pages().find((p) => p.url().startsWith(`http://127.0.0.1:${PAGE_PORT}`));
   check("click_element", click.status === "succeeded" && (await page1.textContent("#out")) === "clicked" && click.schema_ok, JSON.stringify(click));
 
-  const type = await mock.invoke("type_text", { tab_id: tabId, ref: q.ref, text: "夏の予定", submit: true });
+  const { result: type } = await withConfirm(true, () => mock.invoke("type_text", { tab_id: tabId, ref: q.ref, text: "夏の予定", submit: true }));
   check("type_text + submit", type.status === "succeeded" && (await page1.title()) === "submitted:夏の予定" && type.schema_ok, JSON.stringify(type));
 
-  const pw = await mock.invoke("type_text", { tab_id: tabId, selector: "#pw", text: "x" });
+  const { result: pw } = await withConfirm(true, () => mock.invoke("type_text", { tab_id: tabId, selector: "#pw", text: "x" }));
   check("パスワード欄は拒否される", pw.status === "failed" && pw.data.error.includes("password") && pw.schema_ok, JSON.stringify(pw));
 
   const scroll = await mock.invoke("scroll_page", { tab_id: tabId, direction: "down" });
@@ -94,7 +109,7 @@ try {
 
   const sw2 = await mock.invoke("switch_tab", { tab_id: tabId });
   check("switch_tab", sw2.status === "succeeded" && sw2.schema_ok, JSON.stringify(sw2));
-  const close = await mock.invoke("close_tab", { tab_id: tabId });
+  const { result: close } = await withConfirm(true, () => mock.invoke("close_tab", { tab_id: tabId }));
   check("close_tab", close.status === "succeeded" && close.data.closed, JSON.stringify(close));
 
   check("PUT はカタログ登録の1回だけ", mock.state.puts === 1, String(mock.state.puts));
