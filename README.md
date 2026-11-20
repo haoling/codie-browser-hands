@@ -31,6 +31,8 @@ Tools: `list_tabs`, `read_page`, `get_elements`, `open_url`, `switch_tab`, `scro
 
 Notes:
 - Click / type / close-tab show a confirmation window in Chrome (Allow / Deny, auto-denied after 15 s) by default; toggle it in the popup. The extension asks by itself; the tools are declared with `confirmation_required: false` so Codie does not stop and wait on its own. Password fields and non-http(s) pages are refused.
+- Even if you turn confirmations off, a confirmation window is always shown when Codie passes `confirm: true` (the tool descriptions tell it to do so for payments, purchases, sending/posting, deleting and settings changes), when the target button's label looks risky (buy / pay / send / delete ... in English, Japanese or Chinese), and for `type_text` with `submit`.
+- Permissions: `tabs`, `scripting` and `<all_urls>` to read and operate the pages you ask Codie to use; `storage` for settings and the pairing secret; `alarms` to keep the connection alive; `declarativeNetRequest` to remove the Origin header on requests to your own Codie. Page text, element lists and screenshots are sent only to your paired Codie on your LAN, which may process them with CODE27's cloud AI. Nothing is sent to any other server. Use it only on computers you own or are authorized to control. Unofficial: not made, reviewed or endorsed by CODE27.
 - `share_screenshot` captures the visible part of a tab and sends it to Codie as an image message right after the current reply ends (tool results cannot carry images, so it uses the chat `image_text` input; Codie replies aloud on the device).
 - Pairing is `session` (12 h) by default; the secret is stored in `chrome.storage.local`.
 - If browser pairing is rejected, paste a `credentials.json` made by `examples/local_api.py` (from the Codie API package) into **Import** in the popup.
@@ -38,6 +40,7 @@ Notes:
 
 Development: `scripts/build-zip.sh` builds the zip; `cd test && npm i && CHROME_PATH=/path/to/chromium node e2e.mjs` runs the end-to-end test against a mock device (the `test/` folder is not included in the release zip).
 Release: set `version` in `manifest.json`, then push a tag such as `v0.1.0`; GitHub Actions publishes the zip.
+License: MIT (see `LICENSE`).
 
 ---
 
@@ -68,6 +71,8 @@ Codie（1.6.0 の LAN HTTP API）に Chrome を操作させるための Chrome �
 
 補足:
 - クリック・入力・タブを閉じる操作は、既定で Chrome に確認ウィンドウ（許可 / 拒否。15 秒で自動拒否）が出ます。ポップアップで切替できます。確認は拡張自身が行い、Codie が自分で確認待ちにならないよう、ツールは `confirmation_required: false` で宣言しています。パスワード欄と http/https 以外のページは拒否します。
+- 確認をオフにしていても、Codie が `confirm: true` を指定したとき（ツール説明で、決済・購入・送信/投稿・削除・設定変更では必ず指定するよう指示しています）、押そうとするボタンの名前が危険そう（購入・支払い・送信・削除など）なとき、`type_text` の `submit` では、必ず確認ウィンドウが出ます。
+- 権限: `tabs`・`scripting`・`<all_urls>` は Codie に頼んだページを読む・操作するため、`storage` は設定とペアリングの秘密鍵の保存、`alarms` は接続の維持、`declarativeNetRequest` は自分の Codie へのリクエストから Origin ヘッダを外すために使います。ページの本文・要素一覧・スクリーンショットは、LAN 上のペアリング済みの Codie にだけ送られ、Codie が CODE27 のクラウド AI で処理することがあります。それ以外のサーバーには何も送りません。自分のものか、操作する権限があるパソコンでだけ使ってください。非公式であり、CODE27 が作成・審査・推奨したものではありません。
 - `share_screenshot` はタブの見えている範囲を撮り、Codie の今の返答が終わった直後に画像付きメッセージとして送ります（ツール結果では画像を渡せないため、チャットの `image_text` 入力を使います。Codie は端末で声に出して返答します）。
 - ペアリングは既定で `session`（12 時間）です。鍵は `chrome.storage.local` に保存されます。
 - ブラウザーからのペアリングが拒否される場合は、Codie API パッケージの `examples/local_api.py` で作った `credentials.json` を、ポップアップの**取り込む**に貼り付けてください。
@@ -75,6 +80,7 @@ Codie（1.6.0 の LAN HTTP API）に Chrome を操作させるための Chrome �
 
 開発者向け: `scripts/build-zip.sh` で zip を作れます。`cd test && npm i && CHROME_PATH=/path/to/chromium node e2e.mjs` でモック端末を使った E2E テストを実行できます（`test/` はリリース zip に含まれません）。
 リリース: `manifest.json` の `version` を更新し、`v0.1.0` のようなタグを push すると、GitHub Actions が zip を公開します。
+ライセンス: MIT（`LICENSE` を参照）。
 
 ---
 
@@ -105,6 +111,8 @@ Codie（1.6.0 の LAN HTTP API）に Chrome を操作させるための Chrome �
 
 说明：
 - 点击、输入、关闭标签页默认会在 Chrome 中弹出确认窗口（允许 / 拒绝,15 秒后自动拒绝),可在弹窗中切换。确认由扩展自己负责,工具以 `confirmation_required: false` 声明,避免 Codie 自行等待确认。密码输入框和非 http/https 页面会被拒绝。
+- 即使关闭了确认,在以下情况仍会弹出确认窗口:Codie 传入 `confirm: true`(工具说明要求它在付款、购买、发送/发布、删除、修改设置时必须传入)、目标按钮的名称看起来有风险(购买/支付/发送/删除等),以及 `type_text` 使用 `submit` 时。
+- 权限:`tabs`、`scripting`、`<all_urls>` 用于读取和操作你让 Codie 使用的页面;`storage` 保存设置和配对密钥;`alarms` 保持连接;`declarativeNetRequest` 用于去掉发往你自己 Codie 的请求中的 Origin 头。页面文本、元素列表和截图只会发送给局域网内已配对的 Codie,Codie 可能使用 CODE27 的云端 AI 处理,不会发送到其他任何服务器。请仅在你自己拥有或有权操作的电脑上使用。本扩展为非官方,并非由 CODE27 制作、审核或认可。
 - `share_screenshot` 会截取标签页的可见区域,并在 Codie 当前回复结束后,作为带图片的消息发送给它(工具结果无法携带图片,因此使用聊天的 `image_text` 输入;Codie 会在设备上语音回复)。
 - 配对默认为 `session`（12 小时），密钥保存在 `chrome.storage.local` 中。
 - 如果浏览器端配对被拒绝，请把 Codie API 包中 `examples/local_api.py` 生成的 `credentials.json` 粘贴到弹窗的**导入**中。
@@ -112,3 +120,4 @@ Codie（1.6.0 の LAN HTTP API）に Chrome を操作させるための Chrome �
 
 开发者：`scripts/build-zip.sh` 可生成 zip；`cd test && npm i && CHROME_PATH=/path/to/chromium node e2e.mjs` 使用模拟设备运行端到端测试（`test/` 不包含在发布的 zip 中）。
 发布：更新 `manifest.json` 的 `version`，然后推送 `v0.1.0` 这样的标签，GitHub Actions 会发布 zip。
+许可证：MIT（见 `LICENSE`）。

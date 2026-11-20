@@ -1,6 +1,6 @@
 // Service Worker: Codie との接続維持・ツール登録・呼び出し処理。
 import { CodieAPI, APIError, normalizeDeviceUrl } from "./codie.js";
-import { buildCatalog, runTool, describeCall, CONFIRM_TOOLS } from "./tools.js";
+import { buildCatalog, runTool, describeCall, CONFIRM_TOOLS, needsForcedConfirm } from "./tools.js";
 import { UiError, detectLang, LANGS } from "./i18n.js";
 import { shareScreenshot } from "./screenshot.js";
 
@@ -140,7 +140,7 @@ async function onMessage(socket, ev) {
   const call = msg.data;
   let outcome;
   if (Date.now() > call.deadline_unix_ms) outcome = { status: "failed", code: "DEADLINE_EXCEEDED", data: { error: "Deadline exceeded" } };
-  else if (confirmWrites && CONFIRM_TOOLS.includes(call.name) && !(await askConfirm(call).catch(() => false)))
+  else if (CONFIRM_TOOLS.includes(call.name) && (confirmWrites || (await needsForcedConfirm(call.name, call.arguments).catch(() => true))) && !(await askConfirm(call).catch(() => false)))
     outcome = { status: "failed", code: "USER_DECLINED", data: { error: "The user declined this action (or did not respond in time)" } };
   else if (call.name === "share_screenshot") {
     try { outcome = { status: "succeeded", data: await shareScreenshot(await loadConfig(), call) }; }

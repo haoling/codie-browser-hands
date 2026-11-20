@@ -143,7 +143,25 @@ try {
   await popup.waitForFunction(() => document.getElementById("status").className === "online", null, { timeout: 15000 });
   await popup.waitForTimeout(1500);
   const after = JSON.stringify(Object.values(mock.state.integrations)[0].tools.map((t) => t.version));
-  check("定義が変わると version も変わり、再登録できる", mock.state.puts === 2 && before !== after && (await popup.textContent("#status")) === "オンライン", `${mock.state.puts} ${await popup.textContent("#error")} ${await popup.textContent("#msg")}`);
+  check("確認設定を変えてもツール定義は変わらず、オンラインのまま", mock.state.puts === 1 && before === after && (await popup.textContent("#status")) === "オンライン", `${mock.state.puts} ${await popup.textContent("#error")} ${await popup.textContent("#msg")}`);
+
+  // --- 確認オフでも、confirm=true・危険なボタン名・submit は必ず確認される ---
+  const o2 = await mock.invoke("open_url", { url: `http://127.0.0.1:${PAGE_PORT}/` });
+  const tab2 = o2.data.tab_id;
+  const els2 = await mock.invoke("get_elements", { tab_id: tab2 });
+  const b2 = els2.data.elements.find((e) => /押す/.test(e.text || e.label || ""));
+  const go2 = els2.data.elements.find((e) => /送信/.test(e.text || e.label || ""));
+  const q2 = els2.data.elements.find((e) => e.tag === "input" && e.type !== "password");
+  const plain = await mock.invoke("click_element", { tab_id: tab2, ref: b2.ref });
+  check("確認オフ: 普通のクリックは確認なしで実行される", plain.status === "succeeded", JSON.stringify(plain));
+  const forced = await withConfirm(false, () => mock.invoke("click_element", { tab_id: tab2, ref: b2.ref, confirm: true }));
+  check("確認オフでも confirm=true なら確認が出る", forced.result.code === "USER_DECLINED", JSON.stringify(forced.result));
+  const risky = await withConfirm(false, () => mock.invoke("click_element", { tab_id: tab2, ref: go2.ref }));
+  check("確認オフでも『送信』ボタンは確認が出る", risky.result.code === "USER_DECLINED", JSON.stringify(risky.result));
+  const sub = await withConfirm(false, () => mock.invoke("type_text", { tab_id: tab2, ref: q2.ref, text: "x", submit: true }));
+  check("確認オフでも submit=true は確認が出る", sub.result.code === "USER_DECLINED", JSON.stringify(sub.result));
+  const typed = await mock.invoke("type_text", { tab_id: tab2, ref: q2.ref, text: "x" });
+  check("確認オフ: submitなしの入力は確認なし", typed.status === "succeeded", JSON.stringify(typed));
 } catch (e) {
   console.error(e); failed++;
 } finally {

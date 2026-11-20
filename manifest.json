@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Codie Browser Hands",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "CodieがこのChromeを操作できるようにする外部ツール(ベータ)。",
   "minimum_chrome_version": "116",
   "permissions": ["storage", "tabs", "scripting", "alarms", "declarativeNetRequest"],
