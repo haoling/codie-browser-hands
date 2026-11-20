@@ -122,6 +122,13 @@ try {
   const sent = mock.state.shots[0];
   check("ターン終了後に image_text として JPEG が送られる", sent && sent.jpeg && sent.bytes > 1000 && sent.request.input.type === "image_text" && sent.request.input.text === "ページを見て" && sent.request.interrupt === false && sent.request.slot === 1 && /multipart\/form-data; boundary=/.test(sent.contentType), JSON.stringify(sent));
 
+  // 要素指定の撮影は、その範囲だけに切り出される
+  const crop = await mock.invoke("share_screenshot", { tab_id: tabId, ref: btn.ref });
+  for (let i = 0; i < 40 && mock.state.shots.length < 2; i++) await new Promise((r) => setTimeout(r, 250));
+  check("share_screenshot は要素だけを切り出せる", crop.status === "succeeded" && crop.schema_ok && crop.data.width < shot.data.width / 4 && crop.data.height < shot.data.height / 4 && mock.state.shots[1]?.jpeg, JSON.stringify([shot.data, crop.data]));
+  const bad2 = await mock.invoke("share_screenshot", { tab_id: tabId, selector: "#nope" });
+  check("存在しない要素の撮影は失敗で返る", bad2.status === "failed" && bad2.schema_ok, JSON.stringify(bad2));
+
   const sw2 = await mock.invoke("switch_tab", { tab_id: tabId });
   check("switch_tab", sw2.status === "succeeded" && sw2.schema_ok, JSON.stringify(sw2));
   const { result: close } = await withConfirm(true, () => mock.invoke("close_tab", { tab_id: tabId }));
