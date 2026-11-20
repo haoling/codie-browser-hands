@@ -52,9 +52,9 @@ function rawCatalog({ confirmWrites }) {
       parameters: obj({ tab_id: int("Tab ID") }, ["tab_id"]),
       result_schema: result({ closed: bool("Whether the tab was closed") }) },
     { name: "read_page", version: "v1", ...read, timeout_ms: 8000,
-      description: "Read the text of a tab. Long pages are truncated to max_chars characters from the start. Use selector to read only part of the page.",
-      parameters: obj({ tab_id: tabId, selector: str("CSS selector (whole page if omitted)", { maxLength: 200 }), max_chars: int("Maximum number of characters (default 3000)", { minimum: 200, maximum: 4000 }) }),
-      result_schema: result({ title: str("Title", { maxLength: 150 }), url: str("URL", { maxLength: 300 }), text: str("Page text", { maxLength: 4000 }), truncated: bool("Whether the text was truncated"), total_chars: int("Total number of characters in the text") }) },
+      description: "Read the text of a tab. A single call returns at most max_chars characters starting at offset. If truncated is true, call again with offset set to next_offset to continue reading. Use selector to read only part of the page.",
+      parameters: obj({ tab_id: tabId, selector: str("CSS selector (whole page if omitted)", { maxLength: 200 }), max_chars: int("Maximum number of characters (default 3000)", { minimum: 200, maximum: 4000 }), offset: int("Character position to start reading from (default 0). Use next_offset from the previous result to continue", { minimum: 0, maximum: 10000000 }) }),
+      result_schema: result({ title: str("Title", { maxLength: 150 }), url: str("URL", { maxLength: 300 }), text: str("Page text", { maxLength: 4000 }), truncated: bool("Whether more text remains after this chunk"), total_chars: int("Total number of characters in the text"), offset: int("Start position of this chunk"), next_offset: int("Offset to pass to continue reading; present only when truncated is true") }) },
     { name: "get_elements", version: "v1", ...read, timeout_ms: 8000,
       description: "List the interactive elements on the page (links, buttons, input fields). Pass an element's ref to click_element / type_text. Fetch the list again after the page changes.",
       parameters: obj({ tab_id: tabId, limit: int("Maximum number of elements (default 30)", { minimum: 1, maximum: 40 }) }),
@@ -76,12 +76,12 @@ function rawCatalog({ confirmWrites }) {
 
 // ---- ページ内で実行される関数(自己完結していること。外部の関数・変数は参照できない) ----
 
-function pageRead(selector, maxChars) {
+function pageRead(selector, maxChars, offset) {
   try {
     const root = selector ? document.querySelector(selector) : document.body;
     if (!root) return { error: "No element matches the selector" };
     const text = (root.innerText || "").replace(/\n{3,}/g, "\n\n").trim();
-    return { title: document.title.slice(0, 150), url: location.href.slice(0, 300), text: text.slice(0, maxChars), truncated: text.length > maxChars, total_chars: text.length };
+    return { title: document.title.slice(0, 150), url: location.href.slice(0, 300), text: text.slice(offset, offset + maxChars), total_chars: text.length, offset };
   } catch (e) { return { error: String(e.message || e) }; }
 }
 
@@ -220,10 +220,13 @@ const handlers = {
     await chrome.tabs.remove(tab.id);
     return { closed: true };
   },
-  async read_page({ tab_id, selector, max_chars = 3000 }) {
-    let out = await runInPage(tab_id, pageRead, [selector || null, max_chars]);
+  async read_page({ tab_id, selector, max_chars = 3000, offset = 0 }) {
+    const out = await runInPage(tab_id, pageRead, [selector || null, max_chars, offset]);
     // 日本語は1文字3バイトなので、上限を超えるなら本文を縮める
-    while (bytes(out) > MAX_RESULT_BYTES && out.text.length > 100) { out.text = out.text.slice(0, Math.floor(out.text.length * 0.8)); out.truncated = true; }
+    while (bytes(out) > MAX_RESULT_BYTES && out.text.length > 100) out.text = out.text.slice(0, Math.floor(out.text.length * 0.8));
+    // 続きを読めるように、実際に返した分の次の位置を教える
+    out.truncated = offset + out.text.length < out.total_chars;
+    if (out.truncated) out.next_offset = offset + out.text.length;
     return out;
   },
   async get_elements({ tab_id, limit = 30 }) {
