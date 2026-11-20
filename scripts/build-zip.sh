@@ -8,6 +8,6 @@ out=${1:-dist}
 name="codie-browser-hands-v${version}"
 rm -rf "$out/$name" "$out/$name.zip"
 mkdir -p "$out/$name"
-cp -r manifest.json README.md src popup "$out/$name/"
+cp -r manifest.json README.md LICENSE src popup "$out/$name/"
 (cd "$out" && zip -qr "$name.zip" "$name")
 echo "$out/$name.zip"
