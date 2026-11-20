@@ -78,6 +78,11 @@ export function startMock(port) {
       if (req.method === "PUT") {
         const c = JSON.parse(body.toString());
         if ((cur?.revision ?? 0) !== c.expected_revision) return send(res, 409, { code: "REVISION_CONFLICT" });
+        // 実機と同様: 同じ name + version で内容が違う宣言は拒否する
+        for (const t of c.tools) {
+          const prev = cur?.tools.find((x) => x.name === t.name && x.version === t.version);
+          if (prev && JSON.stringify(prev) !== JSON.stringify(t)) return send(res, 409, { code: "TOOL_VERSION_CONFLICT", success: false });
+        }
         const bad = validateCatalog(c);
         if (bad) return send(res, 400, { code: "INVALID_CATALOG", message: bad });
         state.puts++;

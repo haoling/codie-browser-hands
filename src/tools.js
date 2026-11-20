@@ -17,7 +17,18 @@ const tabId = int("Target tab ID. Defaults to the currently active tab");
 const result = (properties) => obj({ ...properties, error: str("Error message on failure", { maxLength: 300 }) });
 
 /** @param {{confirmWrites:boolean}} opts */
-export function buildCatalog({ confirmWrites }) {
+export async function buildCatalog({ confirmWrites }) {
+  const tools = rawCatalog({ confirmWrites });
+  // 端末は「同じ name + version で内容が違う」宣言を TOOL_VERSION_CONFLICT で拒否する。
+  // 内容のハッシュを version に入れて、定義が変わると自動で version も変わるようにする。
+  for (const t of tools) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify({ ...t, version: "" })));
+    t.version = "1." + [...new Uint8Array(buf)].slice(0, 4).map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  return tools;
+}
+
+function rawCatalog({ confirmWrites }) {
   // 確認はブラウザー側(拡張)の確認ウィンドウで行うため、応答待ちの分だけタイムアウトを長くする
   const write = { risk: "consequential", idempotent: false, confirmation_required: !!confirmWrites };
   const writeTimeout = confirmWrites ? 20000 : 8000;
