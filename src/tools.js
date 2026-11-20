@@ -29,8 +29,9 @@ export async function buildCatalog({ confirmWrites }) {
 }
 
 function rawCatalog({ confirmWrites }) {
-  // 確認はブラウザー側(拡張)の確認ウィンドウで行うため、応答待ちの分だけタイムアウトを長くする
-  const write = { risk: "consequential", idempotent: false, confirmation_required: !!confirmWrites };
+  // 確認は拡張の確認ウィンドウで行う。confirmation_required を true にすると、モデルが
+  // 「確認待ち」と判断して実行を呼び出さないことがあるため、常に false で宣言する。
+  const write = { risk: "consequential", idempotent: false, confirmation_required: false };
   const writeTimeout = confirmWrites ? 20000 : 8000;
   const read = { risk: "read", idempotent: true, confirmation_required: false };
   const nav = { risk: "reversible", idempotent: false, confirmation_required: false };
