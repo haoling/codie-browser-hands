@@ -17,6 +17,21 @@ async function loadConfig() {
   return c;
 }
 
+/**
+ * 端末は Origin ヘッダー付きのペアリング要求を拒否する(PAIRING_SOURCE_NOT_ALLOWED)。
+ * 拡張からのリクエストは Origin: chrome-extension://… が付くため、端末宛てだけ Origin / Referer を外す。
+ */
+async function updateOriginRule(deviceUrl) {
+  const removeRuleIds = [1];
+  if (!deviceUrl) return chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds });
+  const addRules = [{
+    id: 1, priority: 1,
+    action: { type: "modifyHeaders", requestHeaders: [{ header: "origin", operation: "remove" }, { header: "referer", operation: "remove" }] },
+    condition: { requestDomains: [new URL(deviceUrl).hostname], resourceTypes: ["xmlhttprequest", "websocket"], initiatorDomains: [chrome.runtime.id] },
+  }];
+  return chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+}
+
 function setStatus(state, key = "", params = {}) {
   status = { state, key, params };
   chrome.storage.session.set({ status }).catch(() => {});
@@ -62,6 +77,7 @@ async function connect() {
   connecting = true;
   setStatus("connecting");
   try {
+    await updateOriginRule(cfg.deviceUrl);
     const api = new CodieAPI(cfg.deviceUrl, cfg.creds);
     await registerCatalog(api, cfg);
     const path = "/v1/ws/tool-integrations/" + cfg.integrationId + "/executor";
@@ -111,6 +127,7 @@ const handlers = {
   },
   async pairStart({ deviceUrl, scope }) {
     const url = normalizeDeviceUrl(deviceUrl);
+    await updateOriginRule(url);
     const api = new CodieAPI(url);
     const { challenge_id, user_id } = await api.pairRequest();
     await chrome.storage.session.set({ challenge: { challenge_id, user_id, deviceUrl: url, scope } });

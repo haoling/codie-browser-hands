@@ -53,7 +53,8 @@ try {
   check("ペアリングして WebSocket がオンラインになる", true);
   const integ = Object.values(mock.state.integrations)[0];
   check("カタログが検証を通って登録された(9ツール)", integ?.tools.length === 9, JSON.stringify(mock.state.log.slice(-4)));
-  console.log("  送信元 Origin:", [...new Set(mock.state.origins)].join(", "));
+  check("端末宛ての HTTP リクエストに Origin が付かない", mock.state.origins.every((o) => !o), [...new Set(mock.state.origins)].join(", "));
+  console.log("  WebSocket の Origin(DNR では外せない):", [...new Set(mock.state.wsOrigins)].join(", "));
 
   // --- ツール呼び出し ---
   const open = await mock.invoke("open_url", { url: `http://127.0.0.1:${PAGE_PORT}/` });
