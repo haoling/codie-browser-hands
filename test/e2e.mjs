@@ -62,7 +62,7 @@ try {
   check("ステータス表示が選択言語になる", (await popup.textContent("#status")) === "オンライン");
   check("ペアリングして WebSocket がオンラインになる", true);
   const integ = Object.values(mock.state.integrations)[0];
-  check("カタログが検証を通って登録された(9ツール)", integ?.tools.length === 9, JSON.stringify(mock.state.log.slice(-4)));
+  check("カタログが検証を通って登録された(10ツール)", integ?.tools.length === 10, JSON.stringify(mock.state.log.slice(-4)));
   check("端末宛ての HTTP リクエストに Origin が付かない", mock.state.origins.every((o) => !o), [...new Set(mock.state.origins)].join(", "));
   console.log("  WebSocket の Origin(DNR では外せない):", [...new Set(mock.state.wsOrigins)].join(", "));
 
@@ -115,6 +115,12 @@ try {
 
   const restricted = await mock.invoke("read_page", { tab_id: (await mock.invoke("open_url", { url: "about:blank" })).data?.tab_id ?? 0 });
   check("操作できないページはエラーで返る", restricted.status === "failed", JSON.stringify(restricted));
+
+  const shot = await mock.invoke("share_screenshot", { tab_id: tabId, message: "ページを見て" });
+  check("share_screenshot が撮影して予約する", shot.status === "succeeded" && shot.data.queued && shot.data.size_kb > 0 && shot.schema_ok, JSON.stringify(shot));
+  for (let i = 0; i < 40 && !mock.state.shots.length; i++) await new Promise((r) => setTimeout(r, 250));
+  const sent = mock.state.shots[0];
+  check("ターン終了後に image_text として JPEG が送られる", sent && sent.jpeg && sent.bytes > 1000 && sent.request.input.type === "image_text" && sent.request.input.text === "ページを見て" && sent.request.interrupt === false && sent.request.slot === 1 && /multipart\/form-data; boundary=/.test(sent.contentType), JSON.stringify(sent));
 
   const sw2 = await mock.invoke("switch_tab", { tab_id: tabId });
   check("switch_tab", sw2.status === "succeeded" && sw2.schema_ok, JSON.stringify(sw2));

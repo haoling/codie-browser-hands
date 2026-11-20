@@ -35,7 +35,8 @@ export async function signHeaders(creds, method, path, bodyBytes = new Uint8Arra
   const timestamp = String(Math.floor(Date.now() / 1000));
   const nonce = crypto.randomUUID();
   const userId = creds.user_id || "";
-  const bodyHash = await sha256Hex(bodyBytes);
+  // multipart は本文をハッシュせず、固定文字列を署名対象とヘッダーの両方に使う
+  const bodyHash = mode === "multipart" ? "UNSIGNED-PAYLOAD" : await sha256Hex(bodyBytes);
   const canonical = [method.toUpperCase(), decodeURIComponent(path.split("?")[0]), timestamp, nonce, mode, bodyHash, userId].join("|");
   const headers = {
     "X-Local-Sig": await hmacHex(creds.local_secret, canonical),
@@ -65,6 +66,21 @@ export class CodieAPI {
       body: payload === undefined ? undefined : body,
       signal: AbortSignal.timeout(timeout),
     });
+    const raw = await res.text();
+    let data;
+    try { data = JSON.parse(raw); } catch { data = raw; }
+    if (!res.ok) throw new APIError(res.status, data);
+    return data;
+  }
+
+  /** multipart/form-data(request の JSON 文字列 + ファイル欄 1 つ)を送る。署名は PAYLOAD_MODE=multipart / UNSIGNED-PAYLOAD */
+  async postMultipart(path, requestObj, fileField, blob, filename, { timeout = 30000 } = {}) {
+    const form = new FormData();
+    form.append("request", JSON.stringify(requestObj));
+    form.append(fileField, blob, filename);
+    const headers = await signHeaders(this.creds, "POST", path, new Uint8Array(), "multipart");
+    // Content-Type(boundary 付き)は fetch に任せる
+    const res = await fetch(this.baseUrl + path, { method: "POST", headers, body: form, signal: AbortSignal.timeout(timeout) });
     const raw = await res.text();
     let data;
     try { data = JSON.parse(raw); } catch { data = raw; }

@@ -2,6 +2,7 @@
 import { CodieAPI, APIError, normalizeDeviceUrl } from "./codie.js";
 import { buildCatalog, runTool, describeCall, CONFIRM_TOOLS } from "./tools.js";
 import { UiError, detectLang, LANGS } from "./i18n.js";
+import { shareScreenshot } from "./screenshot.js";
 
 const DEFAULTS = { deviceUrl: "", creds: null, integrationId: "", confirmWrites: true, autoConnect: false, authScope: "session", catalogHash: "", lang: "" };
 
@@ -141,7 +142,10 @@ async function onMessage(socket, ev) {
   if (Date.now() > call.deadline_unix_ms) outcome = { status: "failed", code: "DEADLINE_EXCEEDED", data: { error: "Deadline exceeded" } };
   else if (confirmWrites && CONFIRM_TOOLS.includes(call.name) && !(await askConfirm(call).catch(() => false)))
     outcome = { status: "failed", code: "USER_DECLINED", data: { error: "The user declined this action (or did not respond in time)" } };
-  else outcome = await runTool(call.name, call.arguments);
+  else if (call.name === "share_screenshot") {
+    try { outcome = { status: "succeeded", data: await shareScreenshot(await loadConfig(), call) }; }
+    catch (e) { outcome = { status: "failed", code: e.code || "INTERNAL_ERROR", data: { error: String(e.message || e).slice(0, 300) } }; }
+  } else outcome = await runTool(call.name, call.arguments);
   if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "result", data: { invocation_id: call.invocation_id, ...outcome } }));
 }
 
