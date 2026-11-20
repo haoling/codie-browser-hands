@@ -20,11 +20,11 @@ Chrome must be running for the tools to be available. Page contents that Codie r
 
 ### How to use
 
-(The popup UI is currently in Japanese; the original labels are shown in parentheses.)
+The popup language (English / 日本語 / 中文) can be switched with the selector at its top right; it follows your Chrome language by default. Button names below are the English ones.
 
 1. Wake and unlock the Codie device. Make sure your PC and the device are on the same LAN.
-2. Click the extension icon, enter the device address (e.g. `http://192.168.0.39:8081`) and click **Start pairing** (`ペアリング開始`).
-3. Type the pairing code shown on the device and click **Confirm** (`確定`). The badge shows `ON` when connected.
+2. Click the extension icon, enter the device address (e.g. `http://192.168.0.39:8081`) and click **Start pairing** .
+3. Type the pairing code shown on the device and click **Confirm**. The badge shows `ON` when connected.
 4. Start a **new conversation** with Codie and ask, e.g. "Read this page" or "Search for … on Google". Tools are frozen per conversation session.
 
 Tools: `list_tabs`, `read_page`, `get_elements`, `open_url`, `switch_tab`, `scroll_page`, `click_element`, `type_text`, `close_tab`.
@@ -32,7 +32,7 @@ Tools: `list_tabs`, `read_page`, `get_elements`, `open_url`, `switch_tab`, `scro
 Notes:
 - Click / type / close-tab are declared as needing confirmation by default (toggle in the popup). Password fields and non-http(s) pages are refused.
 - Pairing is `session` (12 h) by default; the secret is stored in `chrome.storage.local`.
-- If browser pairing is rejected, paste a `credentials.json` made by `examples/local_api.py` (from the Codie API package) into **Import** (`取り込む`) in the popup.
+- If browser pairing is rejected, paste a `credentials.json` made by `examples/local_api.py` (from the Codie API package) into **Import** in the popup.
 - Not yet verified on a real device — see the PR/issues for known unknowns.
 
 Development: `scripts/build-zip.sh` builds the zip; `cd test && npm i && CHROME_PATH=/path/to/chromium node e2e.mjs` runs the end-to-end test against a mock device (the `test/` folder is not included in the release zip).
@@ -55,6 +55,8 @@ Codie（1.6.0 の LAN HTTP API）に Chrome を操作させるための Chrome �
 3. **パッケージ化されていない拡張機能を読み込む**を押して、展開したフォルダを選びます（Chrome 116 以降）。
 
 ### 使い方
+
+ポップアップの右上で言語（English / 日本語 / 中文）を切り替えられます。初期値は Chrome の言語です。
 
 1. Codie 端末をスリープ解除・ロック解除し、PC と同じ LAN につなぎます。
 2. 拡張のアイコンを押し、端末のアドレス（例 `http://192.168.0.39:8081`）を入れて**ペアリング開始**を押します。
@@ -90,11 +92,11 @@ Codie（1.6.0 の LAN HTTP API）に Chrome を操作させるための Chrome �
 
 ### 使用方法
 
-(弹窗界面目前为日语,括号内为原始按钮文字。)
+弹窗右上角可切换界面语言(English / 日本語 / 中文),默认跟随 Chrome 的语言。
 
 1. 唤醒并解锁 Codie 设备，确保电脑与设备在同一局域网。
-2. 点击扩展图标，输入设备地址（例如 `http://192.168.0.39:8081`），点击**开始配对**(`ペアリング開始`)。
-3. 输入设备上显示的配对码，点击**确定**(`確定`)。连接成功后图标上会显示 `ON`。
+2. 点击扩展图标，输入设备地址（例如 `http://192.168.0.39:8081`），点击**开始配对**。
+3. 输入设备上显示的配对码，点击**确定**。连接成功后图标上会显示 `ON`。
 4. 与 Codie 开始一次**新的对话**，例如说"读一下这个页面"或"在 Google 上搜索……"。工具在每次对话会话开始时就已固定。
 
 工具：`list_tabs`、`read_page`、`get_elements`、`open_url`、`switch_tab`、`scroll_page`、`click_element`、`type_text`、`close_tab`。
@@ -102,7 +104,7 @@ Codie（1.6.0 の LAN HTTP API）に Chrome を操作させるための Chrome �
 说明：
 - 点击、输入、关闭标签页默认声明为需要确认（可在弹窗中切换）。密码输入框和非 http/https 页面会被拒绝。
 - 配对默认为 `session`（12 小时），密钥保存在 `chrome.storage.local` 中。
-- 如果浏览器端配对被拒绝，请把 Codie API 包中 `examples/local_api.py` 生成的 `credentials.json` 粘贴到弹窗的**导入**(`取り込む`)中。
+- 如果浏览器端配对被拒绝，请把 Codie API 包中 `examples/local_api.py` 生成的 `credentials.json` 粘贴到弹窗的**导入**中。
 - 尚未在真机上验证，已知的未确认事项请见 PR。
 
 开发者：`scripts/build-zip.sh` 可生成 zip；`cd test && npm i && CHROME_PATH=/path/to/chromium node e2e.mjs` 使用模拟设备运行端到端测试（`test/` 不包含在发布的 zip 中）。

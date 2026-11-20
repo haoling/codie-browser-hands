@@ -10,34 +10,34 @@
   #status { font-weight: bold; }
   .online { color: #2e7d32; } .error { color: #c62828; } .muted { color: #666; font-size: 12px; }
 </style>
-<h1>Codie Browser Hands</h1>
-<div>状態: <span id="status">…</span> <span id="msg" class="muted"></span></div>
+<h1>Codie Browser Hands <select id="lang" style="width:auto;float:right;font-size:12px" aria-label="Language"></select></h1>
+<div><span data-i18n="status"></span>: <span id="status">…</span> <span id="msg" class="muted"></span></div>
 
 <section id="unpaired" hidden>
-  <label>端末のアドレス<input type="text" id="deviceUrl" placeholder="http://192.168.0.39:8081"></label>
-  <label>認証の種類
+  <label><span data-i18n="deviceUrl"></span><input type="text" id="deviceUrl" placeholder="http://192.168.0.39:8081"></label>
+  <label><span data-i18n="scope"></span>
     <select id="scope">
-      <option value="session">session(12時間・端末再起動で失効)</option>
-      <option value="permanent">permanent(長期。PCに鍵を保存)</option>
+      <option value="session" data-i18n="scope.session"></option>
+      <option value="permanent" data-i18n="scope.permanent"></option>
     </select>
   </label>
-  <button id="pairStart">ペアリング開始</button>
+  <button id="pairStart" data-i18n="pairStart"></button>
   <div id="codeBox" hidden>
-    <p class="muted">端末に表示されたコードを入力してください。</p>
-    <input type="text" id="code" placeholder="ペアリングコード">
-    <button id="pairConfirm">確定</button><button id="pairCancel">キャンセル</button>
+    <p class="muted" data-i18n="pairCodeHint"></p>
+    <input type="text" id="code" data-i18n-ph="codePlaceholder">
+    <button id="pairConfirm" data-i18n="confirm"></button><button id="pairCancel" data-i18n="cancel"></button>
   </div>
-  <details><summary class="muted">ブラウザーからのペアリングが拒否される場合</summary>
-    <p class="muted">local_api.py で作った credentials.json の中身を貼り付けます(上の端末アドレスも入力)。</p>
-    <textarea id="credsJson"></textarea><button id="importCreds">取り込む</button>
+  <details><summary class="muted" data-i18n="importSummary"></summary>
+    <p class="muted" data-i18n="importHint"></p>
+    <textarea id="credsJson"></textarea><button id="importCreds" data-i18n="import"></button>
   </details>
 </section>
 
 <section id="paired" hidden>
   <div class="muted" id="pairInfo"></div>
-  <p><button id="connect">接続</button><button id="disconnect">切断</button><button id="unpair">ペアリング解除</button></p>
-  <label><input type="checkbox" id="confirmWrites"> クリック・入力・タブを閉じる操作は確認を要求する</label>
-  <p class="muted">Chrome が起動している間だけ、Codie から Chrome を操作できます。ページの内容は Codie(AIモデル)に送られます。</p>
+  <p><button id="connect" data-i18n="connect"></button><button id="disconnect" data-i18n="disconnect"></button><button id="unpair" data-i18n="unpair"></button></p>
+  <label><input type="checkbox" id="confirmWrites"> <span data-i18n="confirmWrites"></span></label>
+  <p class="muted" data-i18n="notice"></p>
 </section>
 <div id="error" class="error"></div>
 <script src="popup.js" type="module"></script>

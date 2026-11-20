@@ -1,13 +1,14 @@
 // Service Worker: Codie との接続維持・ツール登録・呼び出し処理。
 import { CodieAPI, APIError, normalizeDeviceUrl } from "./codie.js";
 import { buildCatalog, runTool } from "./tools.js";
+import { UiError, detectLang, LANGS } from "./i18n.js";
 
-const DEFAULTS = { deviceUrl: "", creds: null, integrationId: "", confirmWrites: true, autoConnect: false, authScope: "session", catalogHash: "" };
+const DEFAULTS = { deviceUrl: "", creds: null, integrationId: "", confirmWrites: true, autoConnect: false, authScope: "session", catalogHash: "", lang: "" };
 
 let ws = null;
 let reconnectTimer = null;
 let backoff = 3000;
-let status = { state: "offline", message: "" };
+let status = { state: "offline", key: "", params: {} };
 let connecting = false;
 
 async function loadConfig() {
@@ -16,8 +17,8 @@ async function loadConfig() {
   return c;
 }
 
-function setStatus(state, message = "") {
-  status = { state, message };
+function setStatus(state, key = "", params = {}) {
+  status = { state, key, params };
   chrome.storage.session.set({ status }).catch(() => {});
   chrome.action.setBadgeText({ text: state === "online" ? "ON" : "" });
   chrome.action.setBadgeBackgroundColor({ color: "#2e7d32" });
@@ -57,7 +58,7 @@ export async function disconnect() {
 async function connect() {
   if (connecting || ws) return;
   const cfg = await loadConfig();
-  if (!cfg.deviceUrl || !cfg.creds) { setStatus("offline", "未ペアリング"); return; }
+  if (!cfg.deviceUrl || !cfg.creds) { setStatus("offline", "m.notPaired"); return; }
   connecting = true;
   setStatus("connecting");
   try {
@@ -66,20 +67,21 @@ async function connect() {
     const path = "/v1/ws/tool-integrations/" + cfg.integrationId + "/executor";
     const socket = new WebSocket(await api.websocketUrl(path));
     await new Promise((resolve, reject) => {
-      socket.onmessage = (ev) => { try { if (JSON.parse(ev.data).type === "ready") resolve(); else reject(new Error("ready を受信できませんでした")); } catch (e) { reject(e); } };
-      socket.onerror = () => reject(new Error("WebSocket に接続できません(端末のアドレス・認証・スリープを確認)"));
-      socket.onclose = () => reject(new Error("WebSocket が閉じられました(認証失効の可能性)"));
-      setTimeout(() => reject(new Error("ready の待機がタイムアウトしました")), 15000);
+      socket.onmessage = (ev) => { try { if (JSON.parse(ev.data).type === "ready") resolve(); else reject(new UiError("m.noReady")); } catch (e) { reject(e); } };
+      socket.onerror = () => reject(new UiError("m.wsFail"));
+      socket.onclose = () => reject(new UiError("m.wsClosed"));
+      setTimeout(() => reject(new UiError("m.readyTimeout")), 15000);
     });
     ws = socket;
     backoff = 3000;
     socket.onmessage = (ev) => onMessage(socket, ev).catch((e) => console.error(e));
-    socket.onclose = () => { if (ws === socket) { ws = null; setStatus("offline", "切断されました。再接続します"); scheduleReconnect(); } };
+    socket.onclose = () => { if (ws === socket) { ws = null; setStatus("offline", "m.reconnecting"); scheduleReconnect(); } };
     setStatus("online");
   } catch (e) {
     ws = null;
     const authFailed = e instanceof APIError && e.status === 401;
-    setStatus("error", authFailed ? "認証エラー(再ペアリングが必要): " + e.message : String(e.message || e));
+    if (e instanceof UiError) setStatus("error", e.key, e.params);
+    else setStatus("error", authFailed ? "m.authError" : "m.detail", { detail: String(e.message || e) });
     if (!authFailed) scheduleReconnect();
   } finally {
     connecting = false;
@@ -104,7 +106,8 @@ const handlers = {
     const cfg = await loadConfig();
     const { creds, ...rest } = cfg;
     const challenge = (await chrome.storage.session.get("challenge")).challenge || null;
-    return { ...rest, paired: !!creds, scope: creds?.auth_scope || "", expiresAt: creds?.local_session_expires_at_ms || 0, pairing: !!challenge, status };
+    const lang = rest.lang || detectLang();
+    return { ...rest, lang, langs: LANGS, paired: !!creds, scope: creds?.auth_scope || "", expiresAt: creds?.local_session_expires_at_ms || 0, pairing: !!challenge, status };
   },
   async pairStart({ deviceUrl, scope }) {
     const url = normalizeDeviceUrl(deviceUrl);
@@ -115,7 +118,7 @@ const handlers = {
   },
   async pairConfirm({ code }) {
     const { challenge } = await chrome.storage.session.get("challenge");
-    if (!challenge) throw new Error("ペアリング要求がありません。もう一度開始してください");
+    if (!challenge) throw new UiError("m.noChallenge");
     const api = new CodieAPI(challenge.deviceUrl);
     const creds = await api.pairConfirm(challenge.challenge_id, code.trim(), challenge.user_id, challenge.scope);
     await chrome.storage.local.set({ deviceUrl: challenge.deviceUrl, creds, authScope: challenge.scope, catalogHash: "" });
@@ -132,7 +135,7 @@ const handlers = {
   async importCreds({ deviceUrl, json }) {
     const url = normalizeDeviceUrl(deviceUrl);
     const c = JSON.parse(json);
-    if (!c.local_secret || !c.user_id) throw new Error("local_secret と user_id を含む JSON が必要です");
+    if (!c.local_secret || !c.user_id) throw new UiError("m.needCreds");
     await chrome.storage.local.set({ deviceUrl: url, creds: c, authScope: c.auth_scope || "session", catalogHash: "" });
     return {};
   },
@@ -141,6 +144,7 @@ const handlers = {
     await chrome.storage.local.set({ creds: null, autoConnect: false, catalogHash: "" });
     return {};
   },
+  async setLang({ lang }) { if (LANGS[lang]) await chrome.storage.local.set({ lang }); return {}; },
   async saveSettings({ confirmWrites }) {
     await chrome.storage.local.set({ confirmWrites: !!confirmWrites });
     if (ws) { await disconnect(); await connect(); } // 宣言の変更は再接続で反映
@@ -153,7 +157,7 @@ const handlers = {
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   const fn = handlers[msg?.type];
   if (!fn) return false;
-  fn(msg).then((r) => sendResponse({ ok: true, ...r }), (e) => sendResponse({ ok: false, error: String(e.message || e) }));
+  fn(msg).then((r) => sendResponse({ ok: true, ...r }), (e) => sendResponse(e instanceof UiError ? { ok: false, key: e.key, params: e.params } : { ok: false, key: "m.detail", params: { detail: String(e.message || e) } }));
   return true;
 });
 

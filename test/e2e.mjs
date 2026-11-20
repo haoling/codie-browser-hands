@@ -33,13 +33,23 @@ try {
   const popup = await ctx.newPage();
   await popup.goto(`chrome-extension://${extId}/popup/popup.html`);
 
+  // --- 言語切替 ---
+  await popup.waitForSelector("#lang option", { state: "attached" });
+  for (const [lang, label] of [["ja", "ペアリング開始"], ["zh", "开始配对"], ["en", "Start pairing"]]) {
+    await popup.selectOption("#lang", lang);
+    await popup.waitForFunction((l) => document.documentElement.lang === l, lang);
+    check(`言語切替 ${lang}`, (await popup.textContent("#pairStart")) === label, await popup.textContent("#pairStart"));
+  }
+  await popup.selectOption("#lang", "ja");
+
   // --- ペアリング(ポップアップのUI経由) ---
   await popup.fill("#deviceUrl", `http://127.0.0.1:${MOCK_PORT}`);
   await popup.click("#pairStart");
   await popup.waitForSelector("#codeBox:not([hidden])");
   await popup.fill("#code", mock.CODE);
   await popup.click("#pairConfirm");
-  await popup.waitForFunction(() => document.getElementById("status").textContent === "オンライン", null, { timeout: 15000 });
+  await popup.waitForSelector("#status.online", { timeout: 15000 });
+  check("ステータス表示が選択言語になる", (await popup.textContent("#status")) === "オンライン");
   check("ペアリングして WebSocket がオンラインになる", true);
   const integ = Object.values(mock.state.integrations)[0];
   check("カタログが検証を通って登録された(9ツール)", integ?.tools.length === 9, JSON.stringify(mock.state.log.slice(-4)));
