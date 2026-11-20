@@ -165,8 +165,10 @@ function pageScroll(direction) {
 // ---- ハンドラー ----
 
 async function resolveTab(id) {
+  // 確認ウィンドウ(拡張のポップアップ)が最後にフォーカスされていても、通常ウィンドウのタブを選ぶ
   const tab = id != null ? await chrome.tabs.get(id).catch(() => null)
-    : (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0];
+    : (await chrome.tabs.query({ active: true, lastFocusedWindow: true, windowType: "normal" }))[0]
+      || (await chrome.tabs.query({ active: true, windowType: "normal" }))[0];
   if (!tab) throw new ToolError("TAB_NOT_FOUND", "Tab not found");
   return tab;
 }
@@ -275,6 +277,16 @@ export async function needsForcedConfirm(name, args) {
     return typeof label === "string" && RISKY.test(label);
   }
   return false;
+}
+
+/** tab_id 未指定の呼び出しに、確認ウィンドウを開く前の対象タブを固定して入れる */
+export async function pinTab(args) {
+  const a = { ...(args || {}) };
+  if (a.tab_id == null) {
+    const tab = await resolveTab(null).catch(() => null);
+    if (tab) a.tab_id = tab.id;
+  }
+  return a;
 }
 
 /** 確認ウィンドウに出す、対象タブと操作内容の説明 */
