@@ -6,7 +6,7 @@ import { WebSocketServer } from "ws";
 export function startMock(port) {
   const SECRET = "s3cr3t-local-secret", SESSION = "sess-1", USER = "user-1", CODE = "123456";
   const nonces = new Set();
-  const state = { integrations: {}, log: [], origins: [], executor: null, results: new Map(), puts: 0 };
+  const state = { integrations: {}, log: [], origins: [], wsOrigins: [], executor: null, results: new Map(), puts: 0 };
 
   function verify(method, path, headers, body, query) {
     const g = (k) => headers?.[k.toLowerCase()] ?? query?.get(k);
@@ -60,6 +60,8 @@ export function startMock(port) {
     state.origins.push(req.headers.origin || null);
     const path = url.pathname;
     state.log.push(`${req.method} ${path}`);
+    // 実機と同様に、ブラウザー由来(Origin 付き)のペアリング要求は拒否する
+    if (path.startsWith("/v1/api/auth/pair/") && req.headers.origin) return send(res, 403, { code: "PAIRING_SOURCE_NOT_ALLOWED", message: "Pairing request source not allowed", success: false });
     if (path === "/v1/api/auth/bootstrap") return send(res, 200, { success: true, data: { user_id: USER } });
     if (path === "/v1/api/auth/pair/request") return send(res, 200, { success: true, data: { challenge_id: "chal-1" } });
     if (path === "/v1/api/auth/pair/confirm") {
@@ -89,7 +91,7 @@ export function startMock(port) {
   const wss = new WebSocketServer({ noServer: true });
   server.on("upgrade", (req, socket, head) => {
     const url = new URL(req.url, "http://x");
-    state.origins.push(req.headers.origin || null);
+    state.wsOrigins.push(req.headers.origin || null); // 公式資料に WebSocket の Origin 検証の記述はない。実機で要確認
     const m = url.pathname.match(/^\/v1\/ws\/tool-integrations\/([0-9a-f-]+)\/executor$/);
     const err = m && verify("GET", url.pathname, null, Buffer.alloc(0), url.searchParams);
     if (!m || err || !state.integrations[m[1]]) { socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n"); socket.destroy(); state.log.push("WS rejected " + err); return; }
