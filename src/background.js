@@ -1,6 +1,6 @@
 // Service Worker: Codie との接続維持・ツール登録・呼び出し処理。
 import { CodieAPI, APIError, normalizeDeviceUrl } from "./codie.js";
-import { buildCatalog, runTool, describeCall, CONFIRM_TOOLS, needsForcedConfirm } from "./tools.js";
+import { buildCatalog, runTool, describeCall, CONFIRM_TOOLS, needsForcedConfirm, pinTab } from "./tools.js";
 import { UiError, detectLang, LANGS } from "./i18n.js";
 import { shareScreenshot } from "./screenshot.js";
 
@@ -123,8 +123,7 @@ async function askConfirm(call) {
       clearTimeout(timer);
       chrome.windows.onRemoved.removeListener(onRemoved);
       pendingConfirms.delete(id);
-      chrome.windows.remove(win.id).catch(() => {});
-      resolve(ok);
+      chrome.windows.remove(win.id).catch(() => {}).finally(() => resolve(ok));
     };
     const onRemoved = (wid) => { if (wid === win.id) finish(false); };
     chrome.windows.onRemoved.addListener(onRemoved);
@@ -138,6 +137,8 @@ async function onMessage(socket, ev) {
   if (msg.type === "error") { console.warn("protocol error", msg.data); return; }
   if (msg.type !== "invoke") return;
   const call = msg.data;
+  // 確認ウィンドウを開くとフォーカスが移るので、対象タブは先に固定する
+  if (call.name !== "open_url" && call.name !== "list_tabs") call.arguments = await pinTab(call.arguments);
   let outcome;
   if (Date.now() > call.deadline_unix_ms) outcome = { status: "failed", code: "DEADLINE_EXCEEDED", data: { error: "Deadline exceeded" } };
   else if (CONFIRM_TOOLS.includes(call.name) && (confirmWrites || (await needsForcedConfirm(call.name, call.arguments).catch(() => true))) && !(await askConfirm(call).catch(() => false)))

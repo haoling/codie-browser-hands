@@ -162,6 +162,13 @@ try {
   check("確認オフでも submit=true は確認が出る", sub.result.code === "USER_DECLINED", JSON.stringify(sub.result));
   const typed = await mock.invoke("type_text", { tab_id: tab2, ref: q2.ref, text: "x" });
   check("確認オフ: submitなしの入力は確認なし", typed.status === "succeeded", JSON.stringify(typed));
+
+  // --- tab_id なしでも、確認ウィンドウで許可した後にクリックが対象ページへ届く ---
+  const pg2 = ctx.pages().find((p) => p.url().startsWith(`http://127.0.0.1:${PAGE_PORT}`));
+  await pg2.evaluate(() => { document.getElementById("out").textContent = ""; });
+  await pg2.bringToFront();
+  const notab = await withConfirm(true, () => mock.invoke("click_element", { ref: b2.ref, confirm: true }));
+  check("tab_id なしでも許可後にクリックされる", notab.result.status === "succeeded" && (await pg2.textContent("#out")) === "clicked", JSON.stringify(notab.result));
 } catch (e) {
   console.error(e); failed++;
 } finally {
