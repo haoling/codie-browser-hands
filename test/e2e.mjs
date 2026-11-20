@@ -113,6 +113,15 @@ try {
   check("close_tab", close.status === "succeeded" && close.data.closed, JSON.stringify(close));
 
   check("PUT はカタログ登録の1回だけ", mock.state.puts === 1, String(mock.state.puts));
+
+  // --- 設定変更でツール定義が変わっても TOOL_VERSION_CONFLICT にならない ---
+  const before = JSON.stringify(Object.values(mock.state.integrations)[0].tools.map((t) => t.version));
+  await popup.bringToFront();
+  await popup.uncheck("#confirmWrites");
+  await popup.waitForFunction(() => document.getElementById("status").className === "online", null, { timeout: 15000 });
+  await popup.waitForTimeout(1500);
+  const after = JSON.stringify(Object.values(mock.state.integrations)[0].tools.map((t) => t.version));
+  check("定義が変わると version も変わり、再登録できる", mock.state.puts === 2 && before !== after && (await popup.textContent("#status")) === "オンライン", `${mock.state.puts} ${await popup.textContent("#error")} ${await popup.textContent("#msg")}`);
 } catch (e) {
   console.error(e); failed++;
 } finally {

@@ -49,7 +49,7 @@ async function hashOf(value) {
 
 /** カタログを登録(内容が変わったときだけ PUT)。 */
 async function registerCatalog(api, cfg) {
-  const tools = buildCatalog({ confirmWrites: cfg.confirmWrites });
+  const tools = await buildCatalog({ confirmWrites: cfg.confirmWrites });
   const hash = await hashOf({ tools, name: "Chrome" });
   const root = "/v1/api/data/user/tool-integrations/" + cfg.integrationId;
   let revision = 0, existing = null;
