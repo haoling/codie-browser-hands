@@ -6,7 +6,7 @@ import { WebSocketServer } from "ws";
 export function startMock(port) {
   const SECRET = "s3cr3t-local-secret", SESSION = "sess-1", USER = "user-1", CODE = "123456";
   const nonces = new Set();
-  const state = { integrations: {}, log: [], origins: [], wsOrigins: [], executor: null, results: new Map(), puts: 0 };
+  const state = { integrations: {}, log: [], origins: [], wsOrigins: [], executor: null, results: new Map(), puts: 0, shots: [] };
 
   function verify(method, path, headers, body, query) {
     const g = (k) => headers?.[k.toLowerCase()] ?? query?.get(k);
@@ -19,9 +19,13 @@ export function startMock(port) {
     if (nonces.has(nonce)) return "NONCE_REUSED";
     if (uid !== USER) return "LOCAL_USER_MISMATCH";
     if (sid !== SESSION) return "LOCAL_SESSION_MISMATCH";
-    const expectBodyHash = crypto.createHash("sha256").update(body).digest("hex");
-    if (bh !== expectBodyHash) return "BODY_HASH_MISMATCH";
-    if (mode !== (body.length ? "json" : "empty")) return "BAD_MODE";
+    if (mode === "multipart") {
+      if (bh !== "UNSIGNED-PAYLOAD") return "BODY_HASH_MISMATCH";
+    } else {
+      const expectBodyHash = crypto.createHash("sha256").update(body).digest("hex");
+      if (bh !== expectBodyHash) return "BODY_HASH_MISMATCH";
+      if (mode !== (body.length ? "json" : "empty")) return "BAD_MODE";
+    }
     const canonical = [method, decodeURIComponent(path), ts, nonce, mode, bh, uid].join("|");
     const want = crypto.createHmac("sha256", SECRET).update(canonical).digest("hex");
     if (want !== sig) return "INVALID_SIGNATURE";
@@ -68,6 +72,20 @@ export function startMock(port) {
       const j = JSON.parse(body.toString());
       if (j.challenge_id !== "chal-1" || j.pairing_code !== CODE) return send(res, 403, { code: "PAIRING_CODE_INVALID" });
       return send(res, 200, { success: true, data: { local_secret: SECRET, local_session_id: SESSION, local_session_expires_at_ms: Date.now() + 12 * 3600e3, auth_scope: j.auth_scope } });
+    }
+    if (path === "/v1/api/data/user/slot" || path.startsWith("/v1/api/data/user/chat/turns")) {
+      const err = verify(req.method, path, req.headers, body, null);
+      if (err) return send(res, 401, { code: err });
+      if (path === "/v1/api/data/user/slot") return send(res, 200, { success: true, data: { slot_number: 1 } });
+      if (req.method === "GET") return send(res, 200, { success: true, data: { turn_id: path.split("/").pop(), status: "completed" } });
+      // multipart: request(JSON) + image
+      const text = body.toString("latin1");
+      const reqJson = JSON.parse(Buffer.from(text.split('name="request"')[1].split("\r\n\r\n")[1].split("\r\n--")[0], "latin1").toString("utf8"));
+      const imgStart = text.indexOf("\r\n\r\n", text.indexOf('name="image"')) + 4;
+      const imgEnd = text.lastIndexOf("\r\n--");
+      const img = body.subarray(imgStart, imgEnd);
+      state.shots.push({ request: reqJson, bytes: img.length, jpeg: img[0] === 0xff && img[1] === 0xd8, contentType: req.headers["content-type"] });
+      return send(res, 202, { success: true, data: { turn_id: "t2" } });
     }
     const m = path.match(/^\/v1\/api\/data\/user\/tool-integrations\/([0-9a-f-]+)$/);
     if (m) {

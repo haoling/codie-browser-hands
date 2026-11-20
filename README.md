@@ -27,10 +27,11 @@ The popup language (English / 日本語 / 中文) can be switched with the selec
 3. Type the pairing code shown on the device and click **Confirm**. The badge shows `ON` when connected.
 4. Start a **new conversation** with Codie and ask, e.g. "Read this page" or "Search for … on Google". Tools are frozen per conversation session.
 
-Tools: `list_tabs`, `read_page`, `get_elements`, `open_url`, `switch_tab`, `scroll_page`, `click_element`, `type_text`, `close_tab`.
+Tools: `list_tabs`, `read_page`, `get_elements`, `open_url`, `switch_tab`, `scroll_page`, `click_element`, `type_text`, `close_tab`, `share_screenshot`.
 
 Notes:
 - Click / type / close-tab show a confirmation window in Chrome (Allow / Deny, auto-denied after 15 s) by default; toggle it in the popup. The extension asks by itself; the tools are declared with `confirmation_required: false` so Codie does not stop and wait on its own. Password fields and non-http(s) pages are refused.
+- `share_screenshot` captures the visible part of a tab and sends it to Codie as an image message right after the current reply ends (tool results cannot carry images, so it uses the chat `image_text` input; Codie replies aloud on the device).
 - Pairing is `session` (12 h) by default; the secret is stored in `chrome.storage.local`.
 - If browser pairing is rejected, paste a `credentials.json` made by `examples/local_api.py` (from the Codie API package) into **Import** in the popup.
 - Not yet verified on a real device — see the PR/issues for known unknowns.
@@ -63,10 +64,11 @@ Codie（1.6.0 の LAN HTTP API）に Chrome を操作させるための Chrome �
 3. 端末に表示されたコードを入力して**確定**を押します。接続するとバッジに `ON` と出ます。
 4. Codie と**新しい会話**を始めて、「このページを読んで」「Google で○○を検索して」などと話しかけます。ツールは会話セッションごとに固定されるためです。
 
-ツール: `list_tabs`、`read_page`、`get_elements`、`open_url`、`switch_tab`、`scroll_page`、`click_element`、`type_text`、`close_tab`。
+ツール: `list_tabs`、`read_page`、`get_elements`、`open_url`、`switch_tab`、`scroll_page`、`click_element`、`type_text`、`close_tab`、`share_screenshot`。
 
 補足:
 - クリック・入力・タブを閉じる操作は、既定で Chrome に確認ウィンドウ（許可 / 拒否。15 秒で自動拒否）が出ます。ポップアップで切替できます。確認は拡張自身が行い、Codie が自分で確認待ちにならないよう、ツールは `confirmation_required: false` で宣言しています。パスワード欄と http/https 以外のページは拒否します。
+- `share_screenshot` はタブの見えている範囲を撮り、Codie の今の返答が終わった直後に画像付きメッセージとして送ります（ツール結果では画像を渡せないため、チャットの `image_text` 入力を使います。Codie は端末で声に出して返答します）。
 - ペアリングは既定で `session`（12 時間）です。鍵は `chrome.storage.local` に保存されます。
 - ブラウザーからのペアリングが拒否される場合は、Codie API パッケージの `examples/local_api.py` で作った `credentials.json` を、ポップアップの**取り込む**に貼り付けてください。
 - 実機では未検証です。分かっていない点は PR を参照してください。
@@ -99,10 +101,11 @@ Codie（1.6.0 の LAN HTTP API）に Chrome を操作させるための Chrome �
 3. 输入设备上显示的配对码，点击**确定**。连接成功后图标上会显示 `ON`。
 4. 与 Codie 开始一次**新的对话**，例如说"读一下这个页面"或"在 Google 上搜索……"。工具在每次对话会话开始时就已固定。
 
-工具：`list_tabs`、`read_page`、`get_elements`、`open_url`、`switch_tab`、`scroll_page`、`click_element`、`type_text`、`close_tab`。
+工具：`list_tabs`、`read_page`、`get_elements`、`open_url`、`switch_tab`、`scroll_page`、`click_element`、`type_text`、`close_tab`、`share_screenshot`。
 
 说明：
 - 点击、输入、关闭标签页默认会在 Chrome 中弹出确认窗口（允许 / 拒绝,15 秒后自动拒绝),可在弹窗中切换。确认由扩展自己负责,工具以 `confirmation_required: false` 声明,避免 Codie 自行等待确认。密码输入框和非 http/https 页面会被拒绝。
+- `share_screenshot` 会截取标签页的可见区域,并在 Codie 当前回复结束后,作为带图片的消息发送给它(工具结果无法携带图片,因此使用聊天的 `image_text` 输入;Codie 会在设备上语音回复)。
 - 配对默认为 `session`（12 小时），密钥保存在 `chrome.storage.local` 中。
 - 如果浏览器端配对被拒绝，请把 Codie API 包中 `examples/local_api.py` 生成的 `credentials.json` 粘贴到弹窗的**导入**中。
 - 尚未在真机上验证，已知的未确认事项请见 PR。
