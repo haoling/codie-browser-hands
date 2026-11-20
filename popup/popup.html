@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  body { width: 340px; font: 13px/1.5 system-ui, sans-serif; margin: 12px; }
+  h1 { font-size: 15px; margin: 0 0 8px; }
+  section { margin: 10px 0; padding-top: 8px; border-top: 1px solid #ddd; }
+  input[type=text], select, textarea { width: 100%; box-sizing: border-box; margin: 2px 0 6px; }
+  textarea { height: 70px; font-family: monospace; }
+  button { margin-right: 4px; }
+  #status { font-weight: bold; }
+  .online { color: #2e7d32; } .error { color: #c62828; } .muted { color: #666; font-size: 12px; }
+</style>
+<h1>Codie Browser Hands <select id="lang" style="width:auto;float:right;font-size:12px" aria-label="Language"></select></h1>
+<div><span data-i18n="status"></span>: <span id="status">…</span> <span id="msg" class="muted"></span></div>
+
+<section id="unpaired" hidden>
+  <label><span data-i18n="deviceUrl"></span><input type="text" id="deviceUrl" placeholder="http://192.168.0.39:8081"></label>
+  <label><span data-i18n="scope"></span>
+    <select id="scope">
+      <option value="session" data-i18n="scope.session"></option>
+      <option value="permanent" data-i18n="scope.permanent"></option>
+    </select>
+  </label>
+  <button id="pairStart" data-i18n="pairStart"></button>
+  <div id="codeBox" hidden>
+    <p class="muted" data-i18n="pairCodeHint"></p>
+    <input type="text" id="code" data-i18n-ph="codePlaceholder">
+    <button id="pairConfirm" data-i18n="confirm"></button><button id="pairCancel" data-i18n="cancel"></button>
+  </div>
+  <details><summary class="muted" data-i18n="importSummary"></summary>
+    <p class="muted" data-i18n="importHint"></p>
+    <textarea id="credsJson"></textarea><button id="importCreds" data-i18n="import"></button>
+  </details>
+</section>
+
+<section id="paired" hidden>
+  <div class="muted" id="pairInfo"></div>
+  <p><button id="connect" data-i18n="connect"></button><button id="disconnect" data-i18n="disconnect"></button><button id="unpair" data-i18n="unpair"></button></p>
+  <label><input type="checkbox" id="confirmWrites"> <span data-i18n="confirmWrites"></span></label>
+  <p class="muted" data-i18n="notice"></p>
+</section>
+<div id="error" class="error"></div>
+<script src="popup.js" type="module"></script>
