@@ -32,7 +32,7 @@ function rawCatalog({ confirmWrites }) {
   // 確認は拡張の確認ウィンドウで行う。confirmation_required を true にすると、モデルが
   // 「確認待ち」と判断して実行を呼び出さないことがあるため、常に false で宣言する。
   const write = { risk: "consequential", idempotent: false, confirmation_required: false };
-  const writeTimeout = confirmWrites ? 20000 : 8000;
+  const writeTimeout = 20000; // 確認オフでも confirm=true や危険な操作では確認ウィンドウが出る
   const read = { risk: "read", idempotent: true, confirmation_required: false };
   const nav = { risk: "reversible", idempotent: false, confirmation_required: false };
   return [
@@ -65,12 +65,12 @@ function rawCatalog({ confirmWrites }) {
       parameters: obj({ tab_id: tabId, ref: int("Capture only this element (ref returned by get_elements) for more detail"), selector: str("Capture only the element matching this CSS selector", { maxLength: 200 }), message: str("Short note sent together with the image (default: a generic note)", { maxLength: 200 }) }),
       result_schema: result({ queued: bool("Whether the screenshot was captured and queued for delivery"), width: int("Image width (px)"), height: int("Image height (px)"), size_kb: int("Image size (KB)") }) },
     { name: "click_element", version: "v1", ...write, timeout_ms: writeTimeout,
-      description: "Click an element. Specify either a ref from get_elements or a CSS selector.",
-      parameters: obj({ tab_id: tabId, ref: int("ref returned by get_elements"), selector: str("CSS selector", { maxLength: 200 }) }),
+      description: "Click an element. Specify either a ref from get_elements or a CSS selector. For payments, purchases, sending messages/posts, deleting data or changing settings you MUST pass confirm=true so the user is asked first.",
+      parameters: obj({ tab_id: tabId, ref: int("ref returned by get_elements"), selector: str("CSS selector", { maxLength: 200 }), confirm: bool("Set true to always show a confirmation dialog to the user before this action, even if the user turned confirmations off. REQUIRED for anything with real-world consequences: payments, purchases, orders, sending messages or posts, deleting data, changing settings or accounts.") }),
       result_schema: result({ clicked: bool("Whether the click was performed"), tag: str("Tag name", { maxLength: 20 }), text: str("Element text", { maxLength: 40 }) }) },
     { name: "type_text", version: "v1", ...write, timeout_ms: writeTimeout,
-      description: "Type text into an input field. Password fields are refused. With submit=true, submits (Enter) after typing.",
-      parameters: obj({ tab_id: tabId, ref: int("ref returned by get_elements"), selector: str("CSS selector", { maxLength: 200 }), text: str("Text to type", { maxLength: 1000 }), clear: bool("Clear existing content before typing (default true)"), submit: bool("Submit after typing (default false)") }, ["text"]),
+      description: "Type text into an input field. Password fields are refused. With submit=true, submits (Enter) after typing (always confirmed with the user). Pass confirm=true when the text will be sent or posted somewhere with real-world consequences.",
+      parameters: obj({ tab_id: tabId, ref: int("ref returned by get_elements"), selector: str("CSS selector", { maxLength: 200 }), confirm: bool("Set true to always show a confirmation dialog to the user before this action, even if the user turned confirmations off. REQUIRED for anything with real-world consequences: payments, purchases, orders, sending messages or posts, deleting data, changing settings or accounts."), text: str("Text to type", { maxLength: 1000 }), clear: bool("Clear existing content before typing (default true)"), submit: bool("Submit after typing (default false)") }, ["text"]),
       result_schema: result({ typed: bool("Whether the text was typed"), tag: str("Tag name", { maxLength: 20 }) }) },
     { name: "scroll_page", version: "v1", ...nav, timeout_ms: 5000,
       description: "Scroll the page.",
@@ -253,6 +253,29 @@ const handlers = {
 };
 
 export const CONFIRM_TOOLS = ["click_element", "type_text", "close_tab"];
+
+function pageLabel(ref, selector) {
+  try {
+    const el = ref != null ? document.querySelector('[data-codie-ref="' + Number(ref) + '"]') : selector ? document.querySelector(selector) : null;
+    if (!el) return "";
+    return [el.innerText, el.value, el.getAttribute("aria-label"), el.getAttribute("title"), el.getAttribute("name"), el.id].filter(Boolean).join(" ").slice(0, 200);
+  } catch (e) { return ""; }
+}
+
+const RISKY = /buy|purchase|order|pay|checkout|place|submit|send|post|publish|delete|remove|unsubscribe|cancel|confirm|donate|transfer|購入|注文|決済|支払|送信|投稿|公開|削除|退会|解約|確定|申し込|申込|寄付|送金|购买|购|下单|支付|付款|发送|发布|删除|提交|确认|转账/i;
+
+/** 常に確認が必要な操作か。モデルの confirm=true、submit=true、危険そうなボタン名のどれかで強制する */
+export async function needsForcedConfirm(name, args) {
+  if (!CONFIRM_TOOLS.includes(name)) return false;
+  const a = args || {};
+  if (a.confirm === true) return true;
+  if (name === "type_text") return a.submit === true;
+  if (name === "click_element") {
+    const label = await runInPage(a.tab_id, pageLabel, [a.ref ?? null, a.selector ?? null]).catch(() => "");
+    return typeof label === "string" && RISKY.test(label);
+  }
+  return false;
+}
 
 /** 確認ウィンドウに出す、対象タブと操作内容の説明 */
 export async function describeCall(name, args) {
