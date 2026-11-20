@@ -41,6 +41,7 @@ Notes:
 Development: `scripts/build-zip.sh` builds the zip; `cd test && npm i && CHROME_PATH=/path/to/chromium node e2e.mjs` runs the end-to-end test against a mock device (the `test/` folder is not included in the release zip).
 Release: set `version` in `manifest.json`, then push a tag such as `v0.1.0`; GitHub Actions publishes the zip.
 License: MIT (see `LICENSE`).
+Bug reports: please open an [issue](https://github.com/haoling/codie-browser-hands/issues/new/choose). Pull requests are welcome too — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
@@ -81,6 +82,7 @@ Codie（1.6.0 の LAN HTTP API）に Chrome を操作させるための Chrome �
 開発者向け: `scripts/build-zip.sh` で zip を作れます。`cd test && npm i && CHROME_PATH=/path/to/chromium node e2e.mjs` でモック端末を使った E2E テストを実行できます（`test/` はリリース zip に含まれません）。
 リリース: `manifest.json` の `version` を更新し、`v0.1.0` のようなタグを push すると、GitHub Actions が zip を公開します。
 ライセンス: MIT（`LICENSE` を参照）。
+バグ報告は [issue](https://github.com/haoling/codie-browser-hands/issues/new/choose) でお願いします。プルリクエストも歓迎です。書き方は [CONTRIBUTING.md](CONTRIBUTING.md) を見てください。
 
 ---
 
@@ -121,3 +123,4 @@ Codie（1.6.0 の LAN HTTP API）に Chrome を操作させるための Chrome �
 开发者：`scripts/build-zip.sh` 可生成 zip；`cd test && npm i && CHROME_PATH=/path/to/chromium node e2e.mjs` 使用模拟设备运行端到端测试（`test/` 不包含在发布的 zip 中）。
 发布：更新 `manifest.json` 的 `version`，然后推送 `v0.1.0` 这样的标签，GitHub Actions 会发布 zip。
 许可证：MIT（见 `LICENSE`）。
+问题反馈请提交 [issue](https://github.com/haoling/codie-browser-hands/issues/new/choose)，也欢迎提交 Pull Request，写法见 [CONTRIBUTING.md](CONTRIBUTING.md)。
