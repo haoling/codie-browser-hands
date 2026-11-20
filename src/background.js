@@ -94,7 +94,7 @@ async function onMessage(socket, ev) {
   if (msg.type !== "invoke") return;
   const call = msg.data;
   let outcome;
-  if (Date.now() > call.deadline_unix_ms) outcome = { status: "failed", code: "DEADLINE_EXCEEDED", data: { error: "期限を過ぎています" } };
+  if (Date.now() > call.deadline_unix_ms) outcome = { status: "failed", code: "DEADLINE_EXCEEDED", data: { error: "Deadline exceeded" } };
   else outcome = await runTool(call.name, call.arguments);
   if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "result", data: { invocation_id: call.invocation_id, ...outcome } }));
 }

@@ -12,9 +12,9 @@ const obj = (properties, required = []) => ({ type: "object", properties, ...(re
 const str = (description, extra = {}) => ({ type: "string", description, ...extra });
 const int = (description, extra = {}) => ({ type: "integer", description, ...extra });
 const bool = (description) => ({ type: "boolean", description });
-const tabId = int("対象タブID。省略時は現在アクティブなタブ");
+const tabId = int("Target tab ID. Defaults to the currently active tab");
 // 失敗時は data={error:"..."} を返すので、結果スキーマの必須項目は作らない。
-const result = (properties) => obj({ ...properties, error: str("失敗時のメッセージ", { maxLength: 300 }) });
+const result = (properties) => obj({ ...properties, error: str("Error message on failure", { maxLength: 300 }) });
 
 /** @param {{confirmWrites:boolean}} opts */
 export function buildCatalog({ confirmWrites }) {
@@ -23,41 +23,41 @@ export function buildCatalog({ confirmWrites }) {
   const nav = { risk: "reversible", idempotent: false, confirmation_required: false };
   return [
     { name: "list_tabs", version: "v1", ...read, timeout_ms: 5000,
-      description: "Chromeで開いているタブの一覧(tab_id・タイトル・URL・アクティブ状態)を返す。",
+      description: "List the tabs open in Chrome (tab_id, title, URL, active state).",
       parameters: obj({}),
-      result_schema: result({ tabs: { type: "array", maxItems: 30, items: obj({ tab_id: int("タブID"), title: str("タイトル", { maxLength: 80 }), url: str("URL", { maxLength: 150 }), active: bool("そのウィンドウで選択中か") }) } }) },
+      result_schema: result({ tabs: { type: "array", maxItems: 30, items: obj({ tab_id: int("Tab ID"), title: str("Title", { maxLength: 80 }), url: str("URL", { maxLength: 150 }), active: bool("Whether it is the selected tab in its window") }) } }) },
     { name: "open_url", version: "v1", ...nav, timeout_ms: 20000,
-      description: "http/https のURLをChromeで開く。既定は新しいタブ。読み込み完了(最大15秒)まで待つ。",
-      parameters: obj({ url: str("開くURL", { maxLength: 1000 }), new_tab: bool("trueなら新しいタブ(既定)、falseなら現在のタブを置き換える") }, ["url"]),
-      result_schema: result({ tab_id: int("タブID"), url: str("現在のURL", { maxLength: 300 }), title: str("タイトル", { maxLength: 150 }), loaded: bool("読み込み完了したか") }) },
+      description: "Open an http/https URL in Chrome. Opens a new tab by default. Waits for the page to finish loading (up to 15 seconds).",
+      parameters: obj({ url: str("URL to open", { maxLength: 1000 }), new_tab: bool("true opens a new tab (default); false replaces the current tab") }, ["url"]),
+      result_schema: result({ tab_id: int("Tab ID"), url: str("Current URL", { maxLength: 300 }), title: str("Title", { maxLength: 150 }), loaded: bool("Whether loading finished") }) },
     { name: "switch_tab", version: "v1", ...nav, timeout_ms: 5000,
-      description: "指定したタブを前面に表示する。",
-      parameters: obj({ tab_id: int("タブID") }, ["tab_id"]),
-      result_schema: result({ tab_id: int("タブID"), title: str("タイトル", { maxLength: 150 }) }) },
+      description: "Bring the specified tab to the front.",
+      parameters: obj({ tab_id: int("Tab ID") }, ["tab_id"]),
+      result_schema: result({ tab_id: int("Tab ID"), title: str("Title", { maxLength: 150 }) }) },
     { name: "close_tab", version: "v1", ...write, timeout_ms: 5000,
-      description: "指定したタブを閉じる。入力中の内容は失われる。",
-      parameters: obj({ tab_id: int("タブID") }, ["tab_id"]),
-      result_schema: result({ closed: bool("閉じたか") }) },
+      description: "Close the specified tab. Unsaved input in the tab is lost.",
+      parameters: obj({ tab_id: int("Tab ID") }, ["tab_id"]),
+      result_schema: result({ closed: bool("Whether the tab was closed") }) },
     { name: "read_page", version: "v1", ...read, timeout_ms: 8000,
-      description: "タブの本文テキストを読む。長いページは先頭から max_chars 文字で切り詰める。selector で一部だけ読める。",
-      parameters: obj({ tab_id: tabId, selector: str("CSSセレクター(省略時はページ全体)", { maxLength: 200 }), max_chars: int("最大文字数(既定3000)", { minimum: 200, maximum: 4000 }) }),
-      result_schema: result({ title: str("タイトル", { maxLength: 150 }), url: str("URL", { maxLength: 300 }), text: str("本文", { maxLength: 4000 }), truncated: bool("切り詰めたか"), total_chars: int("本文の全文字数") }) },
+      description: "Read the text of a tab. Long pages are truncated to max_chars characters from the start. Use selector to read only part of the page.",
+      parameters: obj({ tab_id: tabId, selector: str("CSS selector (whole page if omitted)", { maxLength: 200 }), max_chars: int("Maximum number of characters (default 3000)", { minimum: 200, maximum: 4000 }) }),
+      result_schema: result({ title: str("Title", { maxLength: 150 }), url: str("URL", { maxLength: 300 }), text: str("Page text", { maxLength: 4000 }), truncated: bool("Whether the text was truncated"), total_chars: int("Total number of characters in the text") }) },
     { name: "get_elements", version: "v1", ...read, timeout_ms: 8000,
-      description: "画面上で操作できる要素(リンク・ボタン・入力欄)の一覧を返す。各要素の ref を click_element / type_text に渡す。ページが変わったら取り直す。",
-      parameters: obj({ tab_id: tabId, limit: int("最大件数(既定30)", { minimum: 1, maximum: 40 }) }),
-      result_schema: result({ elements: { type: "array", maxItems: 40, items: obj({ ref: int("要素の参照番号"), tag: str("タグ名", { maxLength: 20 }), type: str("input の type", { maxLength: 20 }), text: str("表示文字", { maxLength: 40 }), href: str("リンク先", { maxLength: 80 }), value: str("入力済みの値", { maxLength: 30 }), in_view: bool("画面内に見えているか") }) } }) },
+      description: "List the interactive elements on the page (links, buttons, input fields). Pass an element's ref to click_element / type_text. Fetch the list again after the page changes.",
+      parameters: obj({ tab_id: tabId, limit: int("Maximum number of elements (default 30)", { minimum: 1, maximum: 40 }) }),
+      result_schema: result({ elements: { type: "array", maxItems: 40, items: obj({ ref: int("Element reference number"), tag: str("Tag name", { maxLength: 20 }), type: str("Type of the input element", { maxLength: 20 }), text: str("Visible text", { maxLength: 40 }), href: str("Link target", { maxLength: 80 }), value: str("Current value", { maxLength: 30 }), in_view: bool("Whether it is visible in the viewport") }) } }) },
     { name: "click_element", version: "v1", ...write, timeout_ms: 8000,
-      description: "要素をクリックする。get_elements の ref か CSSセレクターのどちらかを指定する。",
-      parameters: obj({ tab_id: tabId, ref: int("get_elements が返した ref"), selector: str("CSSセレクター", { maxLength: 200 }) }),
-      result_schema: result({ clicked: bool("クリックしたか"), tag: str("タグ名", { maxLength: 20 }), text: str("要素の文字", { maxLength: 40 }) }) },
+      description: "Click an element. Specify either a ref from get_elements or a CSS selector.",
+      parameters: obj({ tab_id: tabId, ref: int("ref returned by get_elements"), selector: str("CSS selector", { maxLength: 200 }) }),
+      result_schema: result({ clicked: bool("Whether the click was performed"), tag: str("Tag name", { maxLength: 20 }), text: str("Element text", { maxLength: 40 }) }) },
     { name: "type_text", version: "v1", ...write, timeout_ms: 8000,
-      description: "入力欄に文字を入力する。パスワード欄には入力できない。submit=true なら入力後に送信(Enter)する。",
-      parameters: obj({ tab_id: tabId, ref: int("get_elements が返した ref"), selector: str("CSSセレクター", { maxLength: 200 }), text: str("入力する文字", { maxLength: 1000 }), clear: bool("既存の内容を消してから入力(既定true)"), submit: bool("入力後に送信するか(既定false)") }, ["text"]),
-      result_schema: result({ typed: bool("入力したか"), tag: str("タグ名", { maxLength: 20 }) }) },
+      description: "Type text into an input field. Password fields are refused. With submit=true, submits (Enter) after typing.",
+      parameters: obj({ tab_id: tabId, ref: int("ref returned by get_elements"), selector: str("CSS selector", { maxLength: 200 }), text: str("Text to type", { maxLength: 1000 }), clear: bool("Clear existing content before typing (default true)"), submit: bool("Submit after typing (default false)") }, ["text"]),
+      result_schema: result({ typed: bool("Whether the text was typed"), tag: str("Tag name", { maxLength: 20 }) }) },
     { name: "scroll_page", version: "v1", ...nav, timeout_ms: 5000,
-      description: "ページをスクロールする。",
-      parameters: obj({ tab_id: tabId, direction: str("方向", { enum: ["up", "down", "top", "bottom"] }) }, ["direction"]),
-      result_schema: result({ scroll_y: int("現在位置(px)"), scroll_height: int("ページ全体の高さ(px)"), viewport_height: int("表示領域の高さ(px)") }) },
+      description: "Scroll the page.",
+      parameters: obj({ tab_id: tabId, direction: str("Scroll direction", { enum: ["up", "down", "top", "bottom"] }) }, ["direction"]),
+      result_schema: result({ scroll_y: int("Current scroll position (px)"), scroll_height: int("Total page height (px)"), viewport_height: int("Viewport height (px)") }) },
   ];
 }
 
@@ -66,7 +66,7 @@ export function buildCatalog({ confirmWrites }) {
 function pageRead(selector, maxChars) {
   try {
     const root = selector ? document.querySelector(selector) : document.body;
-    if (!root) return { error: "セレクターに一致する要素がありません" };
+    if (!root) return { error: "No element matches the selector" };
     const text = (root.innerText || "").replace(/\n{3,}/g, "\n\n").trim();
     return { title: document.title.slice(0, 150), url: location.href.slice(0, 300), text: text.slice(0, maxChars), truncated: text.length > maxChars, total_chars: text.length };
   } catch (e) { return { error: String(e.message || e) }; }
@@ -103,7 +103,7 @@ function pageGetElements(limit) {
 function pageClick(ref, selector) {
   try {
     const el = ref != null ? document.querySelector('[data-codie-ref="' + Number(ref) + '"]') : selector ? document.querySelector(selector) : null;
-    if (!el) return { error: "要素が見つかりません。get_elements で ref を取り直してください" };
+    if (!el) return { error: "Element not found. Fetch refs again with get_elements" };
     el.scrollIntoView({ block: "center" });
     el.click();
     return { clicked: true, tag: el.tagName.toLowerCase(), text: (el.innerText || el.value || "").trim().replace(/\s+/g, " ").slice(0, 40) };
@@ -113,8 +113,8 @@ function pageClick(ref, selector) {
 function pageType(ref, selector, text, clear, submit) {
   try {
     const el = ref != null ? document.querySelector('[data-codie-ref="' + Number(ref) + '"]') : selector ? document.querySelector(selector) : null;
-    if (!el) return { error: "要素が見つかりません。get_elements で ref を取り直してください" };
-    if (el.tagName === "INPUT" && el.type === "password") return { error: "パスワード欄には入力できません" };
+    if (!el) return { error: "Element not found. Fetch refs again with get_elements" };
+    if (el.tagName === "INPUT" && el.type === "password") return { error: "Cannot type into password fields" };
     el.scrollIntoView({ block: "center" });
     el.focus();
     if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
@@ -123,7 +123,7 @@ function pageType(ref, selector, text, clear, submit) {
     } else if (el.isContentEditable) {
       el.textContent = clear ? text : el.textContent + text;
     } else {
-      return { error: "入力できない要素です" };
+      return { error: "This element does not accept text input" };
     }
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
@@ -149,13 +149,13 @@ function pageScroll(direction) {
 async function resolveTab(id) {
   const tab = id != null ? await chrome.tabs.get(id).catch(() => null)
     : (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0];
-  if (!tab) throw new ToolError("TAB_NOT_FOUND", "タブが見つかりません");
+  if (!tab) throw new ToolError("TAB_NOT_FOUND", "Tab not found");
   return tab;
 }
 
 async function runInPage(tabIdArg, func, args) {
   const tab = await resolveTab(tabIdArg);
-  if (!/^https?:/.test(tab.url || "")) throw new ToolError("PAGE_NOT_ALLOWED", "このページ(" + (tab.url || "").split(":")[0] + ")は操作できません");
+  if (!/^https?:/.test(tab.url || "")) throw new ToolError("PAGE_NOT_ALLOWED", "This page (" + (tab.url || "").split(":")[0] + ":) cannot be controlled");
   let res;
   try {
     res = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func, args });
@@ -163,7 +163,7 @@ async function runInPage(tabIdArg, func, args) {
     throw new ToolError("SCRIPT_FAILED", String(e.message || e).slice(0, 200));
   }
   const out = res[0]?.result;
-  if (!out) throw new ToolError("SCRIPT_FAILED", "ページから結果が返りませんでした");
+  if (!out) throw new ToolError("SCRIPT_FAILED", "The page returned no result");
   if (out.error) throw new ToolError("TOOL_FAILED", out.error);
   return out;
 }
@@ -187,8 +187,8 @@ const handlers = {
   },
   async open_url({ url, new_tab = true }) {
     let u;
-    try { u = new URL(url); } catch { throw new ToolError("BAD_URL", "URLが不正です"); }
-    if (!["http:", "https:"].includes(u.protocol)) throw new ToolError("BAD_URL", "http/https のURLだけ開けます");
+    try { u = new URL(url); } catch { throw new ToolError("BAD_URL", "Invalid URL"); }
+    if (!["http:", "https:"].includes(u.protocol)) throw new ToolError("BAD_URL", "Only http/https URLs can be opened");
     let tab;
     if (new_tab) tab = await chrome.tabs.create({ url: u.href, active: true });
     else { const cur = await resolveTab(); tab = await chrome.tabs.update(cur.id, { url: u.href, active: true }); }
@@ -219,11 +219,11 @@ const handlers = {
     return out;
   },
   async click_element({ tab_id, ref, selector }) {
-    if (ref == null && !selector) throw new ToolError("BAD_ARGUMENTS", "ref か selector が必要です");
+    if (ref == null && !selector) throw new ToolError("BAD_ARGUMENTS", "Either ref or selector is required");
     return runInPage(tab_id, pageClick, [ref ?? null, selector ?? null]);
   },
   async type_text({ tab_id, ref, selector, text, clear = true, submit = false }) {
-    if (ref == null && !selector) throw new ToolError("BAD_ARGUMENTS", "ref か selector が必要です");
+    if (ref == null && !selector) throw new ToolError("BAD_ARGUMENTS", "Either ref or selector is required");
     return runInPage(tab_id, pageType, [ref ?? null, selector ?? null, text, clear, submit]);
   },
   async scroll_page({ tab_id, direction }) {
@@ -234,10 +234,10 @@ const handlers = {
 /** invoke の data から結果メッセージの data 部分を作る */
 export async function runTool(name, args) {
   const handler = handlers[name];
-  if (!handler) return { status: "failed", code: "UNKNOWN_TOOL", data: { error: "未対応のツール: " + name } };
+  if (!handler) return { status: "failed", code: "UNKNOWN_TOOL", data: { error: "Unsupported tool: " + name } };
   try {
     const data = await handler(args || {});
-    if (bytes(data) > MAX_RESULT_BYTES) throw new ToolError("RESULT_TOO_LARGE", "結果が大きすぎます");
+    if (bytes(data) > MAX_RESULT_BYTES) throw new ToolError("RESULT_TOO_LARGE", "Result is too large");
     return { status: "succeeded", data };
   } catch (e) {
     const code = e instanceof ToolError ? e.code : "INTERNAL_ERROR";

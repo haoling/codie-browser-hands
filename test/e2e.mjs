@@ -80,7 +80,7 @@ try {
   check("type_text + submit", type.status === "succeeded" && (await page1.title()) === "submitted:夏の予定" && type.schema_ok, JSON.stringify(type));
 
   const pw = await mock.invoke("type_text", { tab_id: tabId, selector: "#pw", text: "x" });
-  check("パスワード欄は拒否される", pw.status === "failed" && pw.data.error.includes("パスワード") && pw.schema_ok, JSON.stringify(pw));
+  check("パスワード欄は拒否される", pw.status === "failed" && pw.data.error.includes("password") && pw.schema_ok, JSON.stringify(pw));
 
   const scroll = await mock.invoke("scroll_page", { tab_id: tabId, direction: "down" });
   check("scroll_page", scroll.status === "succeeded" && scroll.data.scroll_y > 0 && scroll.schema_ok, JSON.stringify(scroll));
