@@ -18,6 +18,8 @@ export const DICT = {
     "m.wsFail": "Cannot connect the WebSocket (check the device address, authentication and sleep state)",
     "m.wsClosed": "The WebSocket was closed (the credentials may have expired)", "m.readyTimeout": "Timed out waiting for ready", "m.noReady": "Did not receive ready",
     "m.noChallenge": "No pairing request. Please start again.", "m.needCreds": "JSON containing local_secret and user_id is required",
+    "c.title": "Codie wants to control Chrome", "c.tool.click_element": "Click an element", "c.tool.type_text": "Type text into a field", "c.tool.close_tab": "Close a tab",
+    "c.tab": "Tab", "c.detail": "Details", "c.allow": "Allow", "c.deny": "Deny", "c.timeout": "Denied automatically in {sec}s",
     "m.badUrl": "Use a device address like http://IP:8081 without a path or query", "m.failed": "Failed",
   },
   ja: {
@@ -36,6 +38,8 @@ export const DICT = {
     "m.wsFail": "WebSocket に接続できません(端末のアドレス・認証・スリープを確認)",
     "m.wsClosed": "WebSocket が閉じられました(認証失効の可能性)", "m.readyTimeout": "ready の待機がタイムアウトしました", "m.noReady": "ready を受信できませんでした",
     "m.noChallenge": "ペアリング要求がありません。もう一度開始してください", "m.needCreds": "local_secret と user_id を含む JSON が必要です",
+    "c.title": "Codie が Chrome を操作しようとしています", "c.tool.click_element": "要素をクリック", "c.tool.type_text": "入力欄に文字を入力", "c.tool.close_tab": "タブを閉じる",
+    "c.tab": "対象のタブ", "c.detail": "内容", "c.allow": "許可", "c.deny": "拒否", "c.timeout": "{sec}秒後に自動で拒否します",
     "m.badUrl": "端末アドレスは http://IP:8081 の形式で、パスやクエリを付けずに指定してください", "m.failed": "失敗しました",
   },
   zh: {
@@ -54,6 +58,8 @@ export const DICT = {
     "m.wsFail": "无法连接 WebSocket(请检查设备地址、认证和是否休眠)",
     "m.wsClosed": "WebSocket 已关闭(凭据可能已失效)", "m.readyTimeout": "等待 ready 超时", "m.noReady": "未收到 ready",
     "m.noChallenge": "没有配对请求,请重新开始", "m.needCreds": "需要包含 local_secret 和 user_id 的 JSON",
+    "c.title": "Codie 想要操作 Chrome", "c.tool.click_element": "点击元素", "c.tool.type_text": "在输入框中输入文字", "c.tool.close_tab": "关闭标签页",
+    "c.tab": "目标标签页", "c.detail": "详情", "c.allow": "允许", "c.deny": "拒绝", "c.timeout": "{sec} 秒后自动拒绝",
     "m.badUrl": "设备地址请使用 http://IP:8081 的形式,不要带路径或查询参数", "m.failed": "失败",
   },
 };

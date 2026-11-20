@@ -18,7 +18,9 @@ const result = (properties) => obj({ ...properties, error: str("Error message on
 
 /** @param {{confirmWrites:boolean}} opts */
 export function buildCatalog({ confirmWrites }) {
+  // 確認はブラウザー側(拡張)の確認ウィンドウで行うため、応答待ちの分だけタイムアウトを長くする
   const write = { risk: "consequential", idempotent: false, confirmation_required: !!confirmWrites };
+  const writeTimeout = confirmWrites ? 20000 : 8000;
   const read = { risk: "read", idempotent: true, confirmation_required: false };
   const nav = { risk: "reversible", idempotent: false, confirmation_required: false };
   return [
@@ -34,7 +36,7 @@ export function buildCatalog({ confirmWrites }) {
       description: "Bring the specified tab to the front.",
       parameters: obj({ tab_id: int("Tab ID") }, ["tab_id"]),
       result_schema: result({ tab_id: int("Tab ID"), title: str("Title", { maxLength: 150 }) }) },
-    { name: "close_tab", version: "v1", ...write, timeout_ms: 5000,
+    { name: "close_tab", version: "v1", ...write, timeout_ms: writeTimeout,
       description: "Close the specified tab. Unsaved input in the tab is lost.",
       parameters: obj({ tab_id: int("Tab ID") }, ["tab_id"]),
       result_schema: result({ closed: bool("Whether the tab was closed") }) },
@@ -46,11 +48,11 @@ export function buildCatalog({ confirmWrites }) {
       description: "List the interactive elements on the page (links, buttons, input fields). Pass an element's ref to click_element / type_text. Fetch the list again after the page changes.",
       parameters: obj({ tab_id: tabId, limit: int("Maximum number of elements (default 30)", { minimum: 1, maximum: 40 }) }),
       result_schema: result({ elements: { type: "array", maxItems: 40, items: obj({ ref: int("Element reference number"), tag: str("Tag name", { maxLength: 20 }), type: str("Type of the input element", { maxLength: 20 }), text: str("Visible text", { maxLength: 40 }), href: str("Link target", { maxLength: 80 }), value: str("Current value", { maxLength: 30 }), in_view: bool("Whether it is visible in the viewport") }) } }) },
-    { name: "click_element", version: "v1", ...write, timeout_ms: 8000,
+    { name: "click_element", version: "v1", ...write, timeout_ms: writeTimeout,
       description: "Click an element. Specify either a ref from get_elements or a CSS selector.",
       parameters: obj({ tab_id: tabId, ref: int("ref returned by get_elements"), selector: str("CSS selector", { maxLength: 200 }) }),
       result_schema: result({ clicked: bool("Whether the click was performed"), tag: str("Tag name", { maxLength: 20 }), text: str("Element text", { maxLength: 40 }) }) },
-    { name: "type_text", version: "v1", ...write, timeout_ms: 8000,
+    { name: "type_text", version: "v1", ...write, timeout_ms: writeTimeout,
       description: "Type text into an input field. Password fields are refused. With submit=true, submits (Enter) after typing.",
       parameters: obj({ tab_id: tabId, ref: int("ref returned by get_elements"), selector: str("CSS selector", { maxLength: 200 }), text: str("Text to type", { maxLength: 1000 }), clear: bool("Clear existing content before typing (default true)"), submit: bool("Submit after typing (default false)") }, ["text"]),
       result_schema: result({ typed: bool("Whether the text was typed"), tag: str("Tag name", { maxLength: 20 }) }) },
@@ -230,6 +232,17 @@ const handlers = {
     return runInPage(tab_id, pageScroll, [direction]);
   },
 };
+
+export const CONFIRM_TOOLS = ["click_element", "type_text", "close_tab"];
+
+/** 確認ウィンドウに出す、対象タブと操作内容の説明 */
+export async function describeCall(name, args) {
+  const tab = await resolveTab(args?.tab_id).catch(() => null);
+  let detail = "";
+  if (name === "click_element") detail = args.ref != null ? "ref " + args.ref : String(args.selector || "");
+  if (name === "type_text") detail = (args.ref != null ? "ref " + args.ref : String(args.selector || "")) + " ← " + String(args.text || "").slice(0, 100) + (args.submit ? " ⏎" : "");
+  return { title: (tab?.title || "").slice(0, 100), page: (tab?.url || "").slice(0, 150), detail };
+}
 
 /** invoke の data から結果メッセージの data 部分を作る */
 export async function runTool(name, args) {

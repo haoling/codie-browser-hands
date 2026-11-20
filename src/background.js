@@ -1,6 +1,6 @@
 // Service Worker: Codie との接続維持・ツール登録・呼び出し処理。
 import { CodieAPI, APIError, normalizeDeviceUrl } from "./codie.js";
-import { buildCatalog, runTool } from "./tools.js";
+import { buildCatalog, runTool, describeCall, CONFIRM_TOOLS } from "./tools.js";
 import { UiError, detectLang, LANGS } from "./i18n.js";
 
 const DEFAULTS = { deviceUrl: "", creds: null, integrationId: "", confirmWrites: true, autoConnect: false, authScope: "session", catalogHash: "", lang: "" };
@@ -10,6 +10,9 @@ let reconnectTimer = null;
 let backoff = 3000;
 let status = { state: "offline", key: "", params: {} };
 let connecting = false;
+let confirmWrites = true;
+const CONFIRM_TIMEOUT_MS = 15000;
+const pendingConfirms = new Map();
 
 async function loadConfig() {
   const c = { ...DEFAULTS, ...(await chrome.storage.local.get(null)) };
@@ -77,6 +80,7 @@ async function connect() {
   connecting = true;
   setStatus("connecting");
   try {
+    confirmWrites = cfg.confirmWrites;
     await updateOriginRule(cfg.deviceUrl);
     const api = new CodieAPI(cfg.deviceUrl, cfg.creds);
     await registerCatalog(api, cfg);
@@ -104,6 +108,30 @@ async function connect() {
   }
 }
 
+/** 確認ウィンドウを開き、許可されたら true。閉じる・拒否・時間切れは false。 */
+async function askConfirm(call) {
+  const id = crypto.randomUUID();
+  const info = await describeCall(call.name, call.arguments || {});
+  const url = chrome.runtime.getURL("popup/confirm.html") + "?" + new URLSearchParams({ id, tool: call.name, timeout: String(CONFIRM_TIMEOUT_MS), ...info });
+  const win = await chrome.windows.create({ url, type: "popup", width: 440, height: 340, focused: true });
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      chrome.windows.onRemoved.removeListener(onRemoved);
+      pendingConfirms.delete(id);
+      chrome.windows.remove(win.id).catch(() => {});
+      resolve(ok);
+    };
+    const onRemoved = (wid) => { if (wid === win.id) finish(false); };
+    chrome.windows.onRemoved.addListener(onRemoved);
+    const timer = setTimeout(() => finish(false), CONFIRM_TIMEOUT_MS);
+    pendingConfirms.set(id, finish);
+  });
+}
+
 async function onMessage(socket, ev) {
   const msg = JSON.parse(ev.data);
   if (msg.type === "error") { console.warn("protocol error", msg.data); return; }
@@ -111,6 +139,8 @@ async function onMessage(socket, ev) {
   const call = msg.data;
   let outcome;
   if (Date.now() > call.deadline_unix_ms) outcome = { status: "failed", code: "DEADLINE_EXCEEDED", data: { error: "Deadline exceeded" } };
+  else if (confirmWrites && CONFIRM_TOOLS.includes(call.name) && !(await askConfirm(call).catch(() => false)))
+    outcome = { status: "failed", code: "USER_DECLINED", data: { error: "The user declined this action (or did not respond in time)" } };
   else outcome = await runTool(call.name, call.arguments);
   if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "result", data: { invocation_id: call.invocation_id, ...outcome } }));
 }
@@ -161,6 +191,7 @@ const handlers = {
     await chrome.storage.local.set({ creds: null, autoConnect: false, catalogHash: "" });
     return {};
   },
+  async confirmResult({ id, allow }) { pendingConfirms.get(id)?.(!!allow); return {}; },
   async setLang({ lang }) { if (LANGS[lang]) await chrome.storage.local.set({ lang }); return {}; },
   async saveSettings({ confirmWrites }) {
     await chrome.storage.local.set({ confirmWrites: !!confirmWrites });
